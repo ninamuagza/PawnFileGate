@@ -19,6 +19,6 @@ add_definitions(
 
 add_library(${PROJECT_NAME} SHARED src/main.cpp)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE OMP-SDK pthread)
+target_link_libraries(${PROJECT_NAME} PRIVATE OMP-SDK)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
