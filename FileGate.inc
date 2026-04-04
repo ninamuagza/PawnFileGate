@@ -4,9 +4,19 @@
 #define _filegate_included
 
 /**
- * FileGate Plugin - HTTP File Receiver & Uploader
+ * FileGate Plugin - HTTP File Receiver, Uploader & REST API Framework
  * Compatible Pawn include for open.mp / SA-MP
  */
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HTTP Methods (for REST API)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#define HTTP_GET               0
+#define HTTP_POST              1
+#define HTTP_PUT               2
+#define HTTP_PATCH             3
+#define HTTP_DELETE            4
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Conflict Modes
@@ -177,6 +187,379 @@ native bool:FileGate_SetRequireCRC32(routeId, bool:required);
  * @return true on success
  */
 native bool:FileGate_RemoveRoute(routeId);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REST API Routes
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Registers a custom REST API endpoint.
+ *
+ * Example:
+ *     FileGate_Route(HTTP_GET, "/api/players", "OnGetPlayers");
+ *     FileGate_Route(HTTP_POST, "/api/ban", "OnPostBan");
+ *     FileGate_Route(HTTP_GET, "/api/player/{id}", "OnGetPlayer");
+ *
+ * @param method HTTP method (HTTP_GET, HTTP_POST, HTTP_PUT, HTTP_PATCH, HTTP_DELETE)
+ * @param endpoint Route path (supports {param} placeholders)
+ * @param callback Pawn callback function name
+ * @return routeId, or -1 on failure
+ */
+native FileGate_Route(method, const endpoint[], const callback[]);
+
+/**
+ * Removes a custom API route.
+ *
+ * @param routeId Route ID
+ * @return true on success
+ */
+native bool:FileGate_RemoveAPIRoute(routeId);
+
+/**
+ * Sets authorization key for an API route.
+ * Requires "Authorization: Bearer <key>" header.
+ *
+ * @param routeId Route ID
+ * @param key Authorization key
+ * @return true on success
+ */
+native bool:FileGate_SetRouteAuth(routeId, const key[]);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REST API - Request Data
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Gets the client IP address.
+ *
+ * @param requestId Request ID
+ * @param output Output buffer
+ * @param outputSize Buffer size
+ * @return 1 on success, 0 if not found
+ */
+native FileGate_GetRequestIP(requestId, output[], outputSize);
+
+/**
+ * Gets the HTTP method of the request.
+ *
+ * @param requestId Request ID
+ * @return HTTP method constant (HTTP_GET, HTTP_POST, etc.) or -1 on error
+ */
+native FileGate_GetRequestMethod(requestId);
+
+/**
+ * Gets the request path.
+ *
+ * @param requestId Request ID
+ * @param output Output buffer
+ * @param outputSize Buffer size
+ * @return 1 on success, 0 if not found
+ */
+native FileGate_GetRequestPath(requestId, output[], outputSize);
+
+/**
+ * Gets the raw request body.
+ *
+ * @param requestId Request ID
+ * @param output Output buffer
+ * @param outputSize Buffer size
+ * @return Body length
+ */
+native FileGate_GetRequestBody(requestId, output[], outputSize);
+
+/**
+ * Gets the length of the request body.
+ *
+ * @param requestId Request ID
+ * @return Body length in bytes
+ */
+native FileGate_GetRequestBodyLength(requestId);
+
+/**
+ * Gets a URL parameter value (e.g., {id} from /api/player/{id}).
+ *
+ * @param requestId Request ID
+ * @param name Parameter name
+ * @param output Output buffer
+ * @param outputSize Buffer size
+ * @return 1 on success, 0 if not found
+ */
+native FileGate_GetParam(requestId, const name[], output[], outputSize);
+
+/**
+ * Gets a URL parameter as integer.
+ *
+ * @param requestId Request ID
+ * @param name Parameter name
+ * @return Parameter value or 0 if not found
+ */
+native FileGate_GetParamInt(requestId, const name[]);
+
+/**
+ * Gets a query string parameter (e.g., ?page=1&limit=10).
+ *
+ * @param requestId Request ID
+ * @param name Query parameter name
+ * @param output Output buffer
+ * @param outputSize Buffer size
+ * @return 1 on success, 0 if not found
+ */
+native FileGate_GetQuery(requestId, const name[], output[], outputSize);
+
+/**
+ * Gets a query string parameter as integer.
+ *
+ * @param requestId Request ID
+ * @param name Query parameter name
+ * @param defaultValue Default value if not found
+ * @return Parameter value or defaultValue
+ */
+native FileGate_GetQueryInt(requestId, const name[], defaultValue = 0);
+
+/**
+ * Gets a request header value.
+ *
+ * @param requestId Request ID
+ * @param name Header name
+ * @param output Output buffer
+ * @param outputSize Buffer size
+ * @return 1 on success, 0 if not found
+ */
+native FileGate_GetHeader(requestId, const name[], output[], outputSize);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REST API - JSON Parsing (Request Body)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Gets a string value from JSON request body.
+ *
+ * @param requestId Request ID
+ * @param key JSON key
+ * @param output Output buffer
+ * @param outputSize Buffer size
+ * @return 1 on success, 0 if not found
+ */
+native FileGate_JsonGetString(requestId, const key[], output[], outputSize);
+
+/**
+ * Gets an integer value from JSON request body.
+ *
+ * @param requestId Request ID
+ * @param key JSON key
+ * @param defaultValue Default value if not found
+ * @return Value or defaultValue
+ */
+native FileGate_JsonGetInt(requestId, const key[], defaultValue = 0);
+
+/**
+ * Gets a float value from JSON request body.
+ *
+ * @param requestId Request ID
+ * @param key JSON key
+ * @param defaultValue Default value if not found
+ * @return Value or defaultValue
+ */
+native Float:FileGate_JsonGetFloat(requestId, const key[], Float:defaultValue = 0.0);
+
+/**
+ * Gets a boolean value from JSON request body.
+ *
+ * @param requestId Request ID
+ * @param key JSON key
+ * @param defaultValue Default value if not found
+ * @return Value or defaultValue
+ */
+native bool:FileGate_JsonGetBool(requestId, const key[], bool:defaultValue = false);
+
+/**
+ * Checks if a key exists in JSON request body.
+ *
+ * @param requestId Request ID
+ * @param key JSON key
+ * @return true if key exists
+ */
+native bool:FileGate_JsonHasKey(requestId, const key[]);
+
+/**
+ * Gets the length of a JSON array.
+ *
+ * @param requestId Request ID
+ * @param key JSON key (array key, or empty for root array)
+ * @return Array length, or -1 if not an array
+ */
+native FileGate_JsonArrayLength(requestId, const key[]);
+
+/**
+ * Gets a nested string value using dot notation.
+ * Supports: "user.profile.name" or "items[0].id"
+ *
+ * @param requestId Request ID
+ * @param path Dot-notation path
+ * @param output Output buffer
+ * @param outputSize Buffer size
+ * @return 1 on success, 0 if not found
+ */
+native FileGate_JsonGetNested(requestId, const path[], output[], outputSize);
+
+/**
+ * Gets a nested integer value using dot notation.
+ *
+ * @param requestId Request ID
+ * @param path Dot-notation path
+ * @param defaultValue Default value if not found
+ * @return Value or defaultValue
+ */
+native FileGate_JsonGetNestedInt(requestId, const path[], defaultValue = 0);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REST API - Response
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Sends a response to the client.
+ *
+ * @param requestId Request ID
+ * @param status HTTP status code
+ * @param body Response body
+ * @param contentType Content-Type header (default: "application/json")
+ * @return true on success
+ */
+native bool:FileGate_Respond(requestId, status, const body[], const contentType[] = "application/json");
+
+/**
+ * Sends a JSON response.
+ *
+ * @param requestId Request ID
+ * @param status HTTP status code
+ * @param json JSON string
+ * @return true on success
+ */
+native bool:FileGate_RespondJSON(requestId, status, const json[]);
+
+/**
+ * Sends an error response.
+ *
+ * @param requestId Request ID
+ * @param status HTTP status code
+ * @param message Error message
+ * @return true on success
+ */
+native bool:FileGate_RespondError(requestId, status, const message[]);
+
+/**
+ * Sets a response header (call before Respond).
+ *
+ * @param requestId Request ID
+ * @param name Header name
+ * @param value Header value
+ * @return true on success
+ */
+native bool:FileGate_SetResponseHeader(requestId, const name[], const value[]);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REST API - JSON Builder (Response)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Starts building a JSON response.
+ *
+ * @param requestId Request ID
+ * @return true on success
+ */
+native bool:FileGate_JsonStart(requestId);
+
+/**
+ * Adds a string field to JSON response.
+ *
+ * @param requestId Request ID
+ * @param key Field key
+ * @param value Field value
+ * @return true on success
+ */
+native bool:FileGate_JsonAddString(requestId, const key[], const value[]);
+
+/**
+ * Adds an integer field to JSON response.
+ *
+ * @param requestId Request ID
+ * @param key Field key
+ * @param value Field value
+ * @return true on success
+ */
+native bool:FileGate_JsonAddInt(requestId, const key[], value);
+
+/**
+ * Adds a float field to JSON response.
+ *
+ * @param requestId Request ID
+ * @param key Field key
+ * @param value Field value
+ * @return true on success
+ */
+native bool:FileGate_JsonAddFloat(requestId, const key[], Float:value);
+
+/**
+ * Adds a boolean field to JSON response.
+ *
+ * @param requestId Request ID
+ * @param key Field key
+ * @param value Field value
+ * @return true on success
+ */
+native bool:FileGate_JsonAddBool(requestId, const key[], bool:value);
+
+/**
+ * Adds a null field to JSON response.
+ *
+ * @param requestId Request ID
+ * @param key Field key
+ * @return true on success
+ */
+native bool:FileGate_JsonAddNull(requestId, const key[]);
+
+/**
+ * Starts a nested JSON object.
+ *
+ * @param requestId Request ID
+ * @param key Object key (empty for array element)
+ * @return true on success
+ */
+native bool:FileGate_JsonStartObject(requestId, const key[]);
+
+/**
+ * Ends a nested JSON object.
+ *
+ * @param requestId Request ID
+ * @return true on success
+ */
+native bool:FileGate_JsonEndObject(requestId);
+
+/**
+ * Starts a JSON array.
+ *
+ * @param requestId Request ID
+ * @param key Array key
+ * @return true on success
+ */
+native bool:FileGate_JsonStartArray(requestId, const key[]);
+
+/**
+ * Ends a JSON array.
+ *
+ * @param requestId Request ID
+ * @return true on success
+ */
+native bool:FileGate_JsonEndArray(requestId);
+
+/**
+ * Finalizes and sends the JSON response.
+ *
+ * @param requestId Request ID
+ * @param status HTTP status code (default: 200)
+ * @return true on success
+ */
+native bool:FileGate_JsonSend(requestId, status = 200);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Outgoing Upload Client

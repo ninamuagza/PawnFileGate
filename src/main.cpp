@@ -147,6 +147,56 @@ struct ValidationResult {
     std::string reason;
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// REST API Infrastructure
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum class HttpMethod {
+    GET = 0,
+    POST = 1,
+    PUT = 2,
+    PATCH = 3,
+    DELETE_ = 4  // DELETE is a macro on some platforms
+};
+
+struct APIRoute {
+    int                  routeId = -1;
+    HttpMethod           method = HttpMethod::GET;
+    std::string          endpoint;       // e.g. "/api/players" or "/api/player/{id}"
+    std::string          callbackName;   // Pawn callback name
+    std::unordered_set<std::string> authKeys;
+    std::vector<std::string> paramNames; // extracted from {name} in endpoint
+    std::regex           pattern;        // compiled regex for matching
+    bool                 requireAuth = false;
+};
+
+struct RequestContext {
+    int                  requestId = -1;
+    HttpMethod           method = HttpMethod::GET;
+    std::string          path;
+    std::string          body;
+    std::string          clientIP;
+    std::unordered_map<std::string, std::string> params;   // URL params like {id}
+    std::unordered_map<std::string, std::string> queries;  // Query string ?a=1&b=2
+    std::unordered_map<std::string, std::string> headers;
+    
+    // Response building
+    std::string          responseJson;
+    std::vector<std::string> jsonStack;  // for nested objects/arrays
+    bool                 jsonStarted = false;
+    std::unordered_map<std::string, std::string> responseHeaders;
+    
+    // State
+    bool                 responded = false;
+    httplib::Response*   httpRes = nullptr;
+};
+
+struct APIRequestEvent {
+    int         requestId = -1;
+    int         routeId = -1;
+    std::string callbackName;
+};
+
 namespace Json {
     inline std::string Escape(const std::string& s) {
         std::string out;
@@ -174,6 +224,37 @@ namespace Json {
         return out;
     }
 
+    inline std::string Unescape(const std::string& s) {
+        std::string out;
+        out.reserve(s.size());
+        for (size_t i = 0; i < s.size(); ++i) {
+            if (s[i] == '\\' && i + 1 < s.size()) {
+                switch (s[i + 1]) {
+                    case '"': out += '"'; ++i; break;
+                    case '\\': out += '\\'; ++i; break;
+                    case '/': out += '/'; ++i; break;
+                    case 'b': out += '\b'; ++i; break;
+                    case 'f': out += '\f'; ++i; break;
+                    case 'n': out += '\n'; ++i; break;
+                    case 'r': out += '\r'; ++i; break;
+                    case 't': out += '\t'; ++i; break;
+                    case 'u':
+                        if (i + 5 < s.size()) {
+                            char hex[5] = { s[i+2], s[i+3], s[i+4], s[i+5], 0 };
+                            unsigned int cp = std::strtoul(hex, nullptr, 16);
+                            if (cp < 0x80) out += static_cast<char>(cp);
+                            i += 5;
+                        }
+                        break;
+                    default: out += s[i]; break;
+                }
+            } else {
+                out += s[i];
+            }
+        }
+        return out;
+    }
+
     inline std::string Str(const std::string& key, const std::string& value, bool comma = true) {
         return "\"" + Escape(key) + "\":\"" + Escape(value) + "\"" + (comma ? "," : "");
     }
@@ -182,8 +263,18 @@ namespace Json {
         return "\"" + Escape(key) + "\":" + std::to_string(value) + (comma ? "," : "");
     }
 
+    inline std::string Float(const std::string& key, double value, bool comma = true) {
+        char buf[64];
+        std::snprintf(buf, sizeof(buf), "%.6f", value);
+        return "\"" + Escape(key) + "\":" + std::string(buf) + (comma ? "," : "");
+    }
+
     inline std::string Bool(const std::string& key, bool value, bool comma = true) {
         return "\"" + Escape(key) + "\":" + std::string(value ? "true" : "false") + (comma ? "," : "");
+    }
+
+    inline std::string Null(const std::string& key, bool comma = true) {
+        return "\"" + Escape(key) + "\":null" + (comma ? "," : "");
     }
 
     inline std::string Obj(std::initializer_list<std::string> fields) {
@@ -192,6 +283,313 @@ namespace Json {
         if (!out.empty() && out.back() == ',') out.pop_back();
         out += "}";
         return out;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // JSON Parser - Simple recursive descent parser for request bodies
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    inline void SkipWhitespace(const std::string& s, size_t& pos) {
+        while (pos < s.size() && std::isspace(static_cast<unsigned char>(s[pos]))) ++pos;
+    }
+
+    inline bool ParseString(const std::string& s, size_t& pos, std::string& out) {
+        SkipWhitespace(s, pos);
+        if (pos >= s.size() || s[pos] != '"') return false;
+        ++pos;
+        
+        out.clear();
+        while (pos < s.size() && s[pos] != '"') {
+            if (s[pos] == '\\' && pos + 1 < s.size()) {
+                ++pos;
+                switch (s[pos]) {
+                    case '"': out += '"'; break;
+                    case '\\': out += '\\'; break;
+                    case '/': out += '/'; break;
+                    case 'b': out += '\b'; break;
+                    case 'f': out += '\f'; break;
+                    case 'n': out += '\n'; break;
+                    case 'r': out += '\r'; break;
+                    case 't': out += '\t'; break;
+                    default: out += s[pos]; break;
+                }
+            } else {
+                out += s[pos];
+            }
+            ++pos;
+        }
+        if (pos >= s.size()) return false;
+        ++pos; // skip closing quote
+        return true;
+    }
+
+    inline bool ParseNumber(const std::string& s, size_t& pos, double& out) {
+        SkipWhitespace(s, pos);
+        size_t start = pos;
+        
+        if (pos < s.size() && s[pos] == '-') ++pos;
+        while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
+        if (pos < s.size() && s[pos] == '.') {
+            ++pos;
+            while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
+        }
+        if (pos < s.size() && (s[pos] == 'e' || s[pos] == 'E')) {
+            ++pos;
+            if (pos < s.size() && (s[pos] == '+' || s[pos] == '-')) ++pos;
+            while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
+        }
+        
+        if (pos == start) return false;
+        out = std::strtod(s.substr(start, pos - start).c_str(), nullptr);
+        return true;
+    }
+
+    inline bool ParseBool(const std::string& s, size_t& pos, bool& out) {
+        SkipWhitespace(s, pos);
+        if (s.compare(pos, 4, "true") == 0) {
+            out = true;
+            pos += 4;
+            return true;
+        }
+        if (s.compare(pos, 5, "false") == 0) {
+            out = false;
+            pos += 5;
+            return true;
+        }
+        return false;
+    }
+
+    inline bool ParseNull(const std::string& s, size_t& pos) {
+        SkipWhitespace(s, pos);
+        if (s.compare(pos, 4, "null") == 0) {
+            pos += 4;
+            return true;
+        }
+        return false;
+    }
+
+    // Skip a JSON value (for navigating to nested keys)
+    inline bool SkipValue(const std::string& s, size_t& pos) {
+        SkipWhitespace(s, pos);
+        if (pos >= s.size()) return false;
+        
+        char c = s[pos];
+        if (c == '"') {
+            std::string dummy;
+            return ParseString(s, pos, dummy);
+        } else if (c == '{') {
+            ++pos;
+            SkipWhitespace(s, pos);
+            if (pos < s.size() && s[pos] == '}') { ++pos; return true; }
+            while (pos < s.size()) {
+                std::string key;
+                if (!ParseString(s, pos, key)) return false;
+                SkipWhitespace(s, pos);
+                if (pos >= s.size() || s[pos] != ':') return false;
+                ++pos;
+                if (!SkipValue(s, pos)) return false;
+                SkipWhitespace(s, pos);
+                if (pos < s.size() && s[pos] == '}') { ++pos; return true; }
+                if (pos >= s.size() || s[pos] != ',') return false;
+                ++pos;
+            }
+            return false;
+        } else if (c == '[') {
+            ++pos;
+            SkipWhitespace(s, pos);
+            if (pos < s.size() && s[pos] == ']') { ++pos; return true; }
+            while (pos < s.size()) {
+                if (!SkipValue(s, pos)) return false;
+                SkipWhitespace(s, pos);
+                if (pos < s.size() && s[pos] == ']') { ++pos; return true; }
+                if (pos >= s.size() || s[pos] != ',') return false;
+                ++pos;
+            }
+            return false;
+        } else if (c == 't' || c == 'f') {
+            bool dummy;
+            return ParseBool(s, pos, dummy);
+        } else if (c == 'n') {
+            return ParseNull(s, pos);
+        } else {
+            double dummy;
+            return ParseNumber(s, pos, dummy);
+        }
+    }
+
+    // Find a key in JSON object, return position after ':'
+    inline bool FindKey(const std::string& json, const std::string& key, size_t& outPos) {
+        size_t pos = 0;
+        SkipWhitespace(json, pos);
+        if (pos >= json.size() || json[pos] != '{') return false;
+        ++pos;
+        
+        while (pos < json.size()) {
+            SkipWhitespace(json, pos);
+            if (json[pos] == '}') return false;
+            
+            std::string k;
+            if (!ParseString(json, pos, k)) return false;
+            SkipWhitespace(json, pos);
+            if (pos >= json.size() || json[pos] != ':') return false;
+            ++pos;
+            SkipWhitespace(json, pos);
+            
+            if (k == key) {
+                outPos = pos;
+                return true;
+            }
+            
+            if (!SkipValue(json, pos)) return false;
+            SkipWhitespace(json, pos);
+            if (pos < json.size() && json[pos] == ',') ++pos;
+        }
+        return false;
+    }
+
+    // Find nested key using dot notation: "user.profile.name"
+    inline bool FindNestedKey(const std::string& json, const std::string& path, size_t& outPos, std::string& subJson) {
+        subJson = json;
+        std::stringstream ss(path);
+        std::string segment;
+        
+        while (std::getline(ss, segment, '.')) {
+            // Check for array index: items[0]
+            size_t bracketPos = segment.find('[');
+            std::string key = segment;
+            int arrayIndex = -1;
+            
+            if (bracketPos != std::string::npos) {
+                key = segment.substr(0, bracketPos);
+                size_t endBracket = segment.find(']', bracketPos);
+                if (endBracket != std::string::npos) {
+                    arrayIndex = std::atoi(segment.substr(bracketPos + 1, endBracket - bracketPos - 1).c_str());
+                }
+            }
+            
+            if (!key.empty()) {
+                size_t valPos;
+                if (!FindKey(subJson, key, valPos)) return false;
+                
+                // Extract the value as new subJson
+                size_t start = valPos;
+                size_t end = valPos;
+                if (!SkipValue(subJson, end)) return false;
+                subJson = subJson.substr(start, end - start);
+            }
+            
+            // Handle array index
+            if (arrayIndex >= 0) {
+                size_t pos = 0;
+                SkipWhitespace(subJson, pos);
+                if (pos >= subJson.size() || subJson[pos] != '[') return false;
+                ++pos;
+                
+                for (int i = 0; i <= arrayIndex; ++i) {
+                    SkipWhitespace(subJson, pos);
+                    if (i == arrayIndex) {
+                        size_t start = pos;
+                        size_t end = pos;
+                        if (!SkipValue(subJson, end)) return false;
+                        subJson = subJson.substr(start, end - start);
+                        break;
+                    }
+                    if (!SkipValue(subJson, pos)) return false;
+                    SkipWhitespace(subJson, pos);
+                    if (pos < subJson.size() && subJson[pos] == ',') ++pos;
+                }
+            }
+        }
+        
+        outPos = 0;
+        return true;
+    }
+
+    // High-level getters
+    inline std::string GetString(const std::string& json, const std::string& key, const std::string& def = "") {
+        size_t pos;
+        if (!FindKey(json, key, pos)) return def;
+        std::string out;
+        if (!ParseString(json, pos, out)) return def;
+        return out;
+    }
+
+    inline int GetInt(const std::string& json, const std::string& key, int def = 0) {
+        size_t pos;
+        if (!FindKey(json, key, pos)) return def;
+        double val;
+        if (!ParseNumber(json, pos, val)) return def;
+        return static_cast<int>(val);
+    }
+
+    inline double GetFloat(const std::string& json, const std::string& key, double def = 0.0) {
+        size_t pos;
+        if (!FindKey(json, key, pos)) return def;
+        double val;
+        if (!ParseNumber(json, pos, val)) return def;
+        return val;
+    }
+
+    inline bool GetBool(const std::string& json, const std::string& key, bool def = false) {
+        size_t pos;
+        if (!FindKey(json, key, pos)) return def;
+        bool val;
+        if (!ParseBool(json, pos, val)) return def;
+        return val;
+    }
+
+    inline bool HasKey(const std::string& json, const std::string& key) {
+        size_t pos;
+        return FindKey(json, key, pos);
+    }
+
+    inline int ArrayLength(const std::string& json, const std::string& key) {
+        size_t pos;
+        if (!key.empty()) {
+            if (!FindKey(json, key, pos)) return -1;
+        } else {
+            pos = 0;
+        }
+        
+        SkipWhitespace(json, pos);
+        if (pos >= json.size() || json[pos] != '[') return -1;
+        ++pos;
+        SkipWhitespace(json, pos);
+        if (json[pos] == ']') return 0;
+        
+        int count = 0;
+        while (pos < json.size()) {
+            if (!SkipValue(json, pos)) return -1;
+            ++count;
+            SkipWhitespace(json, pos);
+            if (pos < json.size() && json[pos] == ']') break;
+            if (pos >= json.size() || json[pos] != ',') return -1;
+            ++pos;
+        }
+        return count;
+    }
+
+    // Nested getters
+    inline std::string GetNestedString(const std::string& json, const std::string& path, const std::string& def = "") {
+        size_t pos;
+        std::string sub;
+        if (!FindNestedKey(json, path, pos, sub)) return def;
+        
+        SkipWhitespace(sub, pos);
+        std::string out;
+        if (!ParseString(sub, pos, out)) return def;
+        return out;
+    }
+
+    inline int GetNestedInt(const std::string& json, const std::string& path, int def = 0) {
+        size_t pos;
+        std::string sub;
+        if (!FindNestedKey(json, path, pos, sub)) return def;
+        
+        SkipWhitespace(sub, pos);
+        double val;
+        if (!ParseNumber(sub, pos, val)) return def;
+        return static_cast<int>(val);
     }
 }
 
@@ -454,6 +852,18 @@ private:
 
     std::thread uploadWorkerThread;
     std::atomic<bool> uploadWorkerRunning { false };
+
+    // REST API
+    std::unordered_map<int, APIRoute> apiRoutes;
+    mutable std::mutex apiRoutesMutex;
+    std::atomic<int> nextApiRouteId { 0 };
+    std::atomic<int> nextRequestId { 0 };
+    
+    std::unordered_map<int, std::shared_ptr<RequestContext>> activeRequests;
+    mutable std::mutex requestsMutex;
+    
+    std::mutex apiEventMutex;
+    std::vector<APIRequestEvent> pendingApiEvents;
 
     class DrainTimerHandler : public TimerTimeOutHandler
     {
@@ -1522,6 +1932,9 @@ private:
                     break;
             }
         }
+
+        // API Events
+        DrainApiEvents();
     }
 
     template<typename... Args>
@@ -1534,6 +1947,296 @@ private:
 
         for (IPawnScript* script : pawn->sideScripts())
             script->Call(name, DefaultReturnValue_False, std::forward<Args>(args)...);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // REST API Router
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    std::pair<std::regex, std::vector<std::string>> CompileEndpointPattern(const std::string& endpoint)
+    {
+        std::vector<std::string> paramNames;
+        std::string pattern = "^";
+        
+        size_t i = 0;
+        while (i < endpoint.size()) {
+            if (endpoint[i] == '{') {
+                size_t end = endpoint.find('}', i);
+                if (end != std::string::npos) {
+                    paramNames.push_back(endpoint.substr(i + 1, end - i - 1));
+                    pattern += "([^/]+)";
+                    i = end + 1;
+                    continue;
+                }
+            }
+            
+            // Escape regex special chars
+            char c = endpoint[i];
+            if (c == '.' || c == '+' || c == '*' || c == '?' || 
+                c == '^' || c == '$' || c == '(' || c == ')' ||
+                c == '[' || c == ']' || c == '|' || c == '\\') {
+                pattern += '\\';
+            }
+            pattern += c;
+            ++i;
+        }
+        
+        pattern += "$";
+        return { std::regex(pattern), paramNames };
+    }
+
+    std::unordered_map<std::string, std::string> ParseQueryString(const std::string& query)
+    {
+        std::unordered_map<std::string, std::string> result;
+        std::stringstream ss(query);
+        std::string pair;
+        
+        while (std::getline(ss, pair, '&')) {
+            size_t eq = pair.find('=');
+            if (eq != std::string::npos) {
+                std::string key = pair.substr(0, eq);
+                std::string val = pair.substr(eq + 1);
+                // Basic URL decode
+                std::string decoded;
+                for (size_t i = 0; i < val.size(); ++i) {
+                    if (val[i] == '%' && i + 2 < val.size()) {
+                        char hex[3] = { val[i+1], val[i+2], 0 };
+                        decoded += static_cast<char>(std::strtol(hex, nullptr, 16));
+                        i += 2;
+                    } else if (val[i] == '+') {
+                        decoded += ' ';
+                    } else {
+                        decoded += val[i];
+                    }
+                }
+                result[key] = decoded;
+            }
+        }
+        return result;
+    }
+
+    APIRoute* MatchApiRoute(HttpMethod method, const std::string& path, std::unordered_map<std::string, std::string>& params)
+    {
+        std::lock_guard<std::mutex> lock(apiRoutesMutex);
+        
+        for (auto& kv : apiRoutes) {
+            APIRoute& route = kv.second;
+            if (route.method != method) continue;
+            
+            std::smatch match;
+            if (std::regex_match(path, match, route.pattern)) {
+                params.clear();
+                for (size_t i = 0; i < route.paramNames.size() && i + 1 < match.size(); ++i) {
+                    params[route.paramNames[i]] = match[i + 1].str();
+                }
+                return &route;
+            }
+        }
+        return nullptr;
+    }
+
+    bool CheckApiAuth(const APIRoute& route, const httplib::Request& req)
+    {
+        if (!route.requireAuth || route.authKeys.empty()) return true;
+        
+        auto auth = req.get_header_value("Authorization");
+        if (auth.empty()) return false;
+        
+        if (auth.rfind("Bearer ", 0) == 0) {
+            std::string token = auth.substr(7);
+            return route.authKeys.count(token) > 0;
+        }
+        return false;
+    }
+
+    std::shared_ptr<RequestContext> CreateRequestContext(
+        HttpMethod method,
+        const httplib::Request& req,
+        httplib::Response& res)
+    {
+        auto ctx = std::make_shared<RequestContext>();
+        ctx->requestId = nextRequestId++;
+        ctx->method = method;
+        ctx->path = req.path;
+        ctx->body = req.body;
+        ctx->clientIP = req.remote_addr;
+        ctx->httpRes = &res;
+        
+        // Parse query string
+        if (!req.params.empty()) {
+            for (const auto& kv : req.params) {
+                ctx->queries[kv.first] = kv.second;
+            }
+        }
+        
+        // Copy relevant headers
+        for (const auto& kv : req.headers) {
+            ctx->headers[kv.first] = kv.second;
+        }
+        
+        return ctx;
+    }
+
+    void HandleApiRequest(HttpMethod method, const httplib::Request& req, httplib::Response& res)
+    {
+        std::string path = req.path;
+        std::unordered_map<std::string, std::string> urlParams;
+        
+        APIRoute* route = MatchApiRoute(method, path, urlParams);
+        if (!route) {
+            res.status = 404;
+            res.set_content(Json::Obj({
+                Json::Bool("success", false),
+                Json::Str("error", "Endpoint not found", false)
+            }), "application/json");
+            return;
+        }
+        
+        if (!CheckApiAuth(*route, req)) {
+            res.status = 401;
+            res.set_content(Json::Obj({
+                Json::Bool("success", false),
+                Json::Str("error", "Unauthorized", false)
+            }), "application/json");
+            return;
+        }
+        
+        auto ctx = CreateRequestContext(method, req, res);
+        ctx->params = urlParams;
+        
+        {
+            std::lock_guard<std::mutex> lock(requestsMutex);
+            activeRequests[ctx->requestId] = ctx;
+        }
+        
+        // Queue callback event
+        {
+            std::lock_guard<std::mutex> lock(apiEventMutex);
+            pendingApiEvents.push_back({
+                ctx->requestId,
+                route->routeId,
+                route->callbackName
+            });
+        }
+        
+        // Wait for response (with timeout)
+        auto start = std::chrono::steady_clock::now();
+        while (!ctx->responded) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            auto elapsed = std::chrono::steady_clock::now() - start;
+            if (elapsed > std::chrono::seconds(30)) {
+                res.status = 504;
+                res.set_content(Json::Obj({
+                    Json::Bool("success", false),
+                    Json::Str("error", "Gateway timeout", false)
+                }), "application/json");
+                break;
+            }
+        }
+        
+        // Cleanup
+        {
+            std::lock_guard<std::mutex> lock(requestsMutex);
+            activeRequests.erase(ctx->requestId);
+        }
+    }
+
+    void DrainApiEvents()
+    {
+        std::vector<APIRequestEvent> events;
+        {
+            std::lock_guard<std::mutex> lock(apiEventMutex);
+            events.swap(pendingApiEvents);
+        }
+        
+        for (const auto& ev : events) {
+            CallPawnEvent(ev.callbackName.c_str(), ev.requestId);
+        }
+    }
+
+    void SetupApiHandlers()
+    {
+        if (!httpServer) return;
+        
+        // Generic handlers for all methods
+        auto handleGet = [this](const httplib::Request& req, httplib::Response& res) {
+            HandleApiRequest(HttpMethod::GET, req, res);
+        };
+        auto handlePost = [this](const httplib::Request& req, httplib::Response& res) {
+            HandleApiRequest(HttpMethod::POST, req, res);
+        };
+        auto handlePut = [this](const httplib::Request& req, httplib::Response& res) {
+            HandleApiRequest(HttpMethod::PUT, req, res);
+        };
+        auto handlePatch = [this](const httplib::Request& req, httplib::Response& res) {
+            HandleApiRequest(HttpMethod::PATCH, req, res);
+        };
+        auto handleDelete = [this](const httplib::Request& req, httplib::Response& res) {
+            HandleApiRequest(HttpMethod::DELETE_, req, res);
+        };
+        
+        // Register all API routes
+        std::lock_guard<std::mutex> lock(apiRoutesMutex);
+        for (const auto& kv : apiRoutes) {
+            const APIRoute& route = kv.second;
+            std::string endpoint = route.endpoint;
+            
+            // Convert {param} to regex pattern for httplib
+            std::string httpPattern = endpoint;
+            size_t pos = 0;
+            while ((pos = httpPattern.find('{', pos)) != std::string::npos) {
+                size_t end = httpPattern.find('}', pos);
+                if (end != std::string::npos) {
+                    httpPattern.replace(pos, end - pos + 1, "([^/]+)");
+                } else {
+                    break;
+                }
+            }
+            
+            switch (route.method) {
+                case HttpMethod::GET:
+                    httpServer->Get(httpPattern.c_str(), handleGet);
+                    break;
+                case HttpMethod::POST:
+                    httpServer->Post(httpPattern.c_str(), handlePost);
+                    break;
+                case HttpMethod::PUT:
+                    httpServer->Put(httpPattern.c_str(), handlePut);
+                    break;
+                case HttpMethod::PATCH:
+                    httpServer->Patch(httpPattern.c_str(), handlePatch);
+                    break;
+                case HttpMethod::DELETE_:
+                    httpServer->Delete(httpPattern.c_str(), handleDelete);
+                    break;
+            }
+        }
+        
+        // Built-in endpoints
+        httpServer->Get("/health", [this](const httplib::Request&, httplib::Response& res) {
+            res.set_content(Json::Obj({
+                Json::Bool("success", true),
+                Json::Str("status", "healthy"),
+                Json::Num("uptime", static_cast<long long>(
+                    std::chrono::duration_cast<std::chrono::seconds>(
+                        std::chrono::steady_clock::now().time_since_epoch()
+                    ).count()
+                ), false)
+            }), "application/json");
+        });
+        
+        httpServer->Get("/stats", [this](const httplib::Request&, httplib::Response& res) {
+            std::lock_guard<std::mutex> lock1(routesMutex);
+            std::lock_guard<std::mutex> lock2(apiRoutesMutex);
+            std::lock_guard<std::mutex> lock3(requestsMutex);
+            
+            res.set_content(Json::Obj({
+                Json::Bool("success", true),
+                Json::Num("fileRoutes", static_cast<long long>(routes.size())),
+                Json::Num("apiRoutes", static_cast<long long>(apiRoutes.size())),
+                Json::Num("activeRequests", static_cast<long long>(activeRequests.size()), false)
+            }), "application/json");
+        });
     }
 
     bool StartHttpServer(int port)
@@ -1572,6 +2275,9 @@ private:
                 );
             }
         }
+
+        // Setup REST API handlers
+        SetupApiHandlers();
 
         if (!httpServer->bind_to_port("0.0.0.0", port)) {
             if (core) {
@@ -1885,6 +2591,418 @@ public:
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // REST API
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    int RegisterApiRoute(int method, const std::string& endpoint, const std::string& callback)
+    {
+        if (endpoint.empty() || callback.empty()) return -1;
+        if (endpoint[0] != '/') return -1;
+        if (method < 0 || method > 4) return -1;
+        
+        APIRoute route;
+        route.routeId = nextApiRouteId++;
+        route.method = static_cast<HttpMethod>(method);
+        route.endpoint = endpoint;
+        route.callbackName = callback;
+        route.requireAuth = false;
+        
+        auto compiled = CompileEndpointPattern(endpoint);
+        route.pattern = compiled.first;
+        route.paramNames = compiled.second;
+        
+        int id = route.routeId;
+        
+        {
+            std::lock_guard<std::mutex> lock(apiRoutesMutex);
+            apiRoutes[id] = std::move(route);
+        }
+        
+        // If server is already running, we need to add the handler
+        if (isRunning && httpServer) {
+            std::string httpPattern = endpoint;
+            size_t pos = 0;
+            while ((pos = httpPattern.find('{', pos)) != std::string::npos) {
+                size_t end = httpPattern.find('}', pos);
+                if (end != std::string::npos) {
+                    httpPattern.replace(pos, end - pos + 1, "([^/]+)");
+                } else {
+                    break;
+                }
+            }
+            
+            switch (static_cast<HttpMethod>(method)) {
+                case HttpMethod::GET:
+                    httpServer->Get(httpPattern.c_str(), [this](const httplib::Request& req, httplib::Response& res) {
+                        HandleApiRequest(HttpMethod::GET, req, res);
+                    });
+                    break;
+                case HttpMethod::POST:
+                    httpServer->Post(httpPattern.c_str(), [this](const httplib::Request& req, httplib::Response& res) {
+                        HandleApiRequest(HttpMethod::POST, req, res);
+                    });
+                    break;
+                case HttpMethod::PUT:
+                    httpServer->Put(httpPattern.c_str(), [this](const httplib::Request& req, httplib::Response& res) {
+                        HandleApiRequest(HttpMethod::PUT, req, res);
+                    });
+                    break;
+                case HttpMethod::PATCH:
+                    httpServer->Patch(httpPattern.c_str(), [this](const httplib::Request& req, httplib::Response& res) {
+                        HandleApiRequest(HttpMethod::PATCH, req, res);
+                    });
+                    break;
+                case HttpMethod::DELETE_:
+                    httpServer->Delete(httpPattern.c_str(), [this](const httplib::Request& req, httplib::Response& res) {
+                        HandleApiRequest(HttpMethod::DELETE_, req, res);
+                    });
+                    break;
+            }
+        }
+        
+        const char* methodNames[] = { "GET", "POST", "PUT", "PATCH", "DELETE" };
+        if (core) {
+            core->printLn("  [FileGate] API route registered: %s %s -> %s()",
+                methodNames[method], endpoint.c_str(), callback.c_str());
+        }
+        
+        return id;
+    }
+    
+    bool RemoveApiRoute(int routeId)
+    {
+        std::lock_guard<std::mutex> lock(apiRoutesMutex);
+        auto it = apiRoutes.find(routeId);
+        if (it == apiRoutes.end()) return false;
+        apiRoutes.erase(it);
+        return true;
+    }
+    
+    bool SetApiRouteAuth(int routeId, const std::string& key)
+    {
+        std::lock_guard<std::mutex> lock(apiRoutesMutex);
+        auto it = apiRoutes.find(routeId);
+        if (it == apiRoutes.end()) return false;
+        it->second.authKeys.insert(key);
+        it->second.requireAuth = true;
+        return true;
+    }
+    
+    // Request data access
+    std::shared_ptr<RequestContext> GetRequest(int requestId)
+    {
+        std::lock_guard<std::mutex> lock(requestsMutex);
+        auto it = activeRequests.find(requestId);
+        if (it == activeRequests.end()) return nullptr;
+        return it->second;
+    }
+    
+    std::string GetRequestIP(int requestId)
+    {
+        auto ctx = GetRequest(requestId);
+        return ctx ? ctx->clientIP : "";
+    }
+    
+    int GetRequestMethod(int requestId)
+    {
+        auto ctx = GetRequest(requestId);
+        return ctx ? static_cast<int>(ctx->method) : -1;
+    }
+    
+    std::string GetRequestPath(int requestId)
+    {
+        auto ctx = GetRequest(requestId);
+        return ctx ? ctx->path : "";
+    }
+    
+    std::string GetRequestBody(int requestId)
+    {
+        auto ctx = GetRequest(requestId);
+        return ctx ? ctx->body : "";
+    }
+    
+    int GetRequestBodyLength(int requestId)
+    {
+        auto ctx = GetRequest(requestId);
+        return ctx ? static_cast<int>(ctx->body.size()) : 0;
+    }
+    
+    std::string GetParam(int requestId, const std::string& name)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx) return "";
+        auto it = ctx->params.find(name);
+        return (it != ctx->params.end()) ? it->second : "";
+    }
+    
+    int GetParamInt(int requestId, const std::string& name)
+    {
+        std::string val = GetParam(requestId, name);
+        return val.empty() ? 0 : std::atoi(val.c_str());
+    }
+    
+    std::string GetQuery(int requestId, const std::string& name)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx) return "";
+        auto it = ctx->queries.find(name);
+        return (it != ctx->queries.end()) ? it->second : "";
+    }
+    
+    int GetQueryInt(int requestId, const std::string& name, int defaultVal)
+    {
+        std::string val = GetQuery(requestId, name);
+        return val.empty() ? defaultVal : std::atoi(val.c_str());
+    }
+    
+    std::string GetHeader(int requestId, const std::string& name)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx) return "";
+        auto it = ctx->headers.find(name);
+        return (it != ctx->headers.end()) ? it->second : "";
+    }
+    
+    // JSON parsing from request body
+    std::string JsonGetString(int requestId, const std::string& key, const std::string& def)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx) return def;
+        return Json::GetString(ctx->body, key, def);
+    }
+    
+    int JsonGetInt(int requestId, const std::string& key, int def)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx) return def;
+        return Json::GetInt(ctx->body, key, def);
+    }
+    
+    double JsonGetFloat(int requestId, const std::string& key, double def)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx) return def;
+        return Json::GetFloat(ctx->body, key, def);
+    }
+    
+    bool JsonGetBool(int requestId, const std::string& key, bool def)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx) return def;
+        return Json::GetBool(ctx->body, key, def);
+    }
+    
+    bool JsonHasKey(int requestId, const std::string& key)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx) return false;
+        return Json::HasKey(ctx->body, key);
+    }
+    
+    int JsonArrayLength(int requestId, const std::string& key)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx) return -1;
+        return Json::ArrayLength(ctx->body, key);
+    }
+    
+    std::string JsonGetNested(int requestId, const std::string& path, const std::string& def)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx) return def;
+        return Json::GetNestedString(ctx->body, path, def);
+    }
+    
+    int JsonGetNestedInt(int requestId, const std::string& path, int def)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx) return def;
+        return Json::GetNestedInt(ctx->body, path, def);
+    }
+    
+    // Response methods
+    bool Respond(int requestId, int status, const std::string& body, const std::string& contentType)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || ctx->responded || !ctx->httpRes) return false;
+        
+        for (const auto& kv : ctx->responseHeaders) {
+            ctx->httpRes->set_header(kv.first.c_str(), kv.second.c_str());
+        }
+        
+        ctx->httpRes->status = status;
+        ctx->httpRes->set_content(body, contentType.c_str());
+        ctx->responded = true;
+        return true;
+    }
+    
+    bool RespondJSON(int requestId, int status, const std::string& json)
+    {
+        return Respond(requestId, status, json, "application/json");
+    }
+    
+    bool RespondError(int requestId, int status, const std::string& message)
+    {
+        return RespondJSON(requestId, status, Json::Obj({
+            Json::Bool("success", false),
+            Json::Str("error", message, false)
+        }));
+    }
+    
+    bool SetResponseHeader(int requestId, const std::string& name, const std::string& value)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || ctx->responded) return false;
+        ctx->responseHeaders[name] = value;
+        return true;
+    }
+    
+    // JSON builder for responses
+    bool JsonStart(int requestId)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || ctx->jsonStarted) return false;
+        ctx->responseJson = "{";
+        ctx->jsonStarted = true;
+        ctx->jsonStack.clear();
+        ctx->jsonStack.push_back("object");
+        return true;
+    }
+    
+    bool JsonAddString(int requestId, const std::string& key, const std::string& value)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || !ctx->jsonStarted) return false;
+        if (ctx->responseJson.back() != '{' && ctx->responseJson.back() != '[' && ctx->responseJson.back() != ',')
+            ctx->responseJson += ",";
+        if (!ctx->jsonStack.empty() && ctx->jsonStack.back() == "object" && !key.empty()) {
+            ctx->responseJson += "\"" + Json::Escape(key) + "\":";
+        }
+        ctx->responseJson += "\"" + Json::Escape(value) + "\"";
+        return true;
+    }
+    
+    bool JsonAddInt(int requestId, const std::string& key, int value)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || !ctx->jsonStarted) return false;
+        if (ctx->responseJson.back() != '{' && ctx->responseJson.back() != '[' && ctx->responseJson.back() != ',')
+            ctx->responseJson += ",";
+        if (!ctx->jsonStack.empty() && ctx->jsonStack.back() == "object" && !key.empty()) {
+            ctx->responseJson += "\"" + Json::Escape(key) + "\":";
+        }
+        ctx->responseJson += std::to_string(value);
+        return true;
+    }
+    
+    bool JsonAddFloat(int requestId, const std::string& key, double value)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || !ctx->jsonStarted) return false;
+        if (ctx->responseJson.back() != '{' && ctx->responseJson.back() != '[' && ctx->responseJson.back() != ',')
+            ctx->responseJson += ",";
+        if (!ctx->jsonStack.empty() && ctx->jsonStack.back() == "object" && !key.empty()) {
+            ctx->responseJson += "\"" + Json::Escape(key) + "\":";
+        }
+        char buf[64];
+        std::snprintf(buf, sizeof(buf), "%.6f", value);
+        ctx->responseJson += buf;
+        return true;
+    }
+    
+    bool JsonAddBool(int requestId, const std::string& key, bool value)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || !ctx->jsonStarted) return false;
+        if (ctx->responseJson.back() != '{' && ctx->responseJson.back() != '[' && ctx->responseJson.back() != ',')
+            ctx->responseJson += ",";
+        if (!ctx->jsonStack.empty() && ctx->jsonStack.back() == "object" && !key.empty()) {
+            ctx->responseJson += "\"" + Json::Escape(key) + "\":";
+        }
+        ctx->responseJson += value ? "true" : "false";
+        return true;
+    }
+    
+    bool JsonAddNull(int requestId, const std::string& key)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || !ctx->jsonStarted) return false;
+        if (ctx->responseJson.back() != '{' && ctx->responseJson.back() != '[' && ctx->responseJson.back() != ',')
+            ctx->responseJson += ",";
+        if (!ctx->jsonStack.empty() && ctx->jsonStack.back() == "object" && !key.empty()) {
+            ctx->responseJson += "\"" + Json::Escape(key) + "\":";
+        }
+        ctx->responseJson += "null";
+        return true;
+    }
+    
+    bool JsonStartObject(int requestId, const std::string& key)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || !ctx->jsonStarted) return false;
+        if (ctx->responseJson.back() != '{' && ctx->responseJson.back() != '[' && ctx->responseJson.back() != ',')
+            ctx->responseJson += ",";
+        if (!ctx->jsonStack.empty() && ctx->jsonStack.back() == "object" && !key.empty()) {
+            ctx->responseJson += "\"" + Json::Escape(key) + "\":";
+        }
+        ctx->responseJson += "{";
+        ctx->jsonStack.push_back("object");
+        return true;
+    }
+    
+    bool JsonEndObject(int requestId)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || !ctx->jsonStarted || ctx->jsonStack.empty()) return false;
+        if (ctx->jsonStack.back() != "object") return false;
+        ctx->jsonStack.pop_back();
+        ctx->responseJson += "}";
+        return true;
+    }
+    
+    bool JsonStartArray(int requestId, const std::string& key)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || !ctx->jsonStarted) return false;
+        if (ctx->responseJson.back() != '{' && ctx->responseJson.back() != '[' && ctx->responseJson.back() != ',')
+            ctx->responseJson += ",";
+        if (!ctx->jsonStack.empty() && ctx->jsonStack.back() == "object" && !key.empty()) {
+            ctx->responseJson += "\"" + Json::Escape(key) + "\":";
+        }
+        ctx->responseJson += "[";
+        ctx->jsonStack.push_back("array");
+        return true;
+    }
+    
+    bool JsonEndArray(int requestId)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || !ctx->jsonStarted || ctx->jsonStack.empty()) return false;
+        if (ctx->jsonStack.back() != "array") return false;
+        ctx->jsonStack.pop_back();
+        ctx->responseJson += "]";
+        return true;
+    }
+    
+    bool JsonSend(int requestId, int status)
+    {
+        auto ctx = GetRequest(requestId);
+        if (!ctx || !ctx->jsonStarted) return false;
+        
+        // Close all open structures
+        while (!ctx->jsonStack.empty()) {
+            if (ctx->jsonStack.back() == "object") {
+                ctx->responseJson += "}";
+            } else {
+                ctx->responseJson += "]";
+            }
+            ctx->jsonStack.pop_back();
+        }
+        
+        return RespondJSON(requestId, status, ctx->responseJson);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // UPLOAD API (Client)
     // ═══════════════════════════════════════════════════════════════════════
     int QueueUpload(
@@ -2079,6 +3197,285 @@ SCRIPT_API(FileGate_RemoveRoute, bool(int routeId))
     auto c = GetComponent();
     if (!c) return false;
     return c->RemoveRoute(routeId);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REST API Natives
+// ═══════════════════════════════════════════════════════════════════════════
+
+SCRIPT_API(FileGate_Route, int(int method, const std::string& endpoint, const std::string& callback))
+{
+    auto c = GetComponent();
+    if (!c) return -1;
+    return c->RegisterApiRoute(method, endpoint, callback);
+}
+
+SCRIPT_API(FileGate_RemoveAPIRoute, bool(int routeId))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->RemoveApiRoute(routeId);
+}
+
+SCRIPT_API(FileGate_SetRouteAuth, bool(int routeId, const std::string& key))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->SetApiRouteAuth(routeId, key);
+}
+
+// Request data access
+SCRIPT_API(FileGate_GetRequestIP, int(int requestId, std::string& output, int outputSize))
+{
+    auto c = GetComponent();
+    if (!c) { output = ""; return 0; }
+    std::string ip = c->GetRequestIP(requestId);
+    output = ip.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    return ip.empty() ? 0 : 1;
+}
+
+SCRIPT_API(FileGate_GetRequestMethod, int(int requestId))
+{
+    auto c = GetComponent();
+    if (!c) return -1;
+    return c->GetRequestMethod(requestId);
+}
+
+SCRIPT_API(FileGate_GetRequestPath, int(int requestId, std::string& output, int outputSize))
+{
+    auto c = GetComponent();
+    if (!c) { output = ""; return 0; }
+    std::string path = c->GetRequestPath(requestId);
+    output = path.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    return path.empty() ? 0 : 1;
+}
+
+SCRIPT_API(FileGate_GetRequestBody, int(int requestId, std::string& output, int outputSize))
+{
+    auto c = GetComponent();
+    if (!c) { output = ""; return 0; }
+    std::string body = c->GetRequestBody(requestId);
+    output = body.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    return static_cast<int>(body.size());
+}
+
+SCRIPT_API(FileGate_GetRequestBodyLength, int(int requestId))
+{
+    auto c = GetComponent();
+    if (!c) return 0;
+    return c->GetRequestBodyLength(requestId);
+}
+
+// URL parameters
+SCRIPT_API(FileGate_GetParam, int(int requestId, const std::string& name, std::string& output, int outputSize))
+{
+    auto c = GetComponent();
+    if (!c) { output = ""; return 0; }
+    std::string val = c->GetParam(requestId, name);
+    output = val.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    return val.empty() ? 0 : 1;
+}
+
+SCRIPT_API(FileGate_GetParamInt, int(int requestId, const std::string& name))
+{
+    auto c = GetComponent();
+    if (!c) return 0;
+    return c->GetParamInt(requestId, name);
+}
+
+// Query string
+SCRIPT_API(FileGate_GetQuery, int(int requestId, const std::string& name, std::string& output, int outputSize))
+{
+    auto c = GetComponent();
+    if (!c) { output = ""; return 0; }
+    std::string val = c->GetQuery(requestId, name);
+    output = val.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    return val.empty() ? 0 : 1;
+}
+
+SCRIPT_API(FileGate_GetQueryInt, int(int requestId, const std::string& name, int defaultValue))
+{
+    auto c = GetComponent();
+    if (!c) return defaultValue;
+    return c->GetQueryInt(requestId, name, defaultValue);
+}
+
+// Headers
+SCRIPT_API(FileGate_GetHeader, int(int requestId, const std::string& name, std::string& output, int outputSize))
+{
+    auto c = GetComponent();
+    if (!c) { output = ""; return 0; }
+    std::string val = c->GetHeader(requestId, name);
+    output = val.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    return val.empty() ? 0 : 1;
+}
+
+// JSON parsing from request body
+SCRIPT_API(FileGate_JsonGetString, int(int requestId, const std::string& key, std::string& output, int outputSize))
+{
+    auto c = GetComponent();
+    if (!c) { output = ""; return 0; }
+    std::string val = c->JsonGetString(requestId, key, "");
+    output = val.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    return val.empty() ? 0 : 1;
+}
+
+SCRIPT_API(FileGate_JsonGetInt, int(int requestId, const std::string& key, int defaultValue))
+{
+    auto c = GetComponent();
+    if (!c) return defaultValue;
+    return c->JsonGetInt(requestId, key, defaultValue);
+}
+
+SCRIPT_API(FileGate_JsonGetFloat, float(int requestId, const std::string& key, float defaultValue))
+{
+    auto c = GetComponent();
+    if (!c) return defaultValue;
+    return static_cast<float>(c->JsonGetFloat(requestId, key, defaultValue));
+}
+
+SCRIPT_API(FileGate_JsonGetBool, bool(int requestId, const std::string& key, bool defaultValue))
+{
+    auto c = GetComponent();
+    if (!c) return defaultValue;
+    return c->JsonGetBool(requestId, key, defaultValue);
+}
+
+SCRIPT_API(FileGate_JsonHasKey, bool(int requestId, const std::string& key))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->JsonHasKey(requestId, key);
+}
+
+SCRIPT_API(FileGate_JsonArrayLength, int(int requestId, const std::string& key))
+{
+    auto c = GetComponent();
+    if (!c) return -1;
+    return c->JsonArrayLength(requestId, key);
+}
+
+SCRIPT_API(FileGate_JsonGetNested, int(int requestId, const std::string& path, std::string& output, int outputSize))
+{
+    auto c = GetComponent();
+    if (!c) { output = ""; return 0; }
+    std::string val = c->JsonGetNested(requestId, path, "");
+    output = val.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    return val.empty() ? 0 : 1;
+}
+
+SCRIPT_API(FileGate_JsonGetNestedInt, int(int requestId, const std::string& path, int defaultValue))
+{
+    auto c = GetComponent();
+    if (!c) return defaultValue;
+    return c->JsonGetNestedInt(requestId, path, defaultValue);
+}
+
+// Response methods
+SCRIPT_API(FileGate_Respond, bool(int requestId, int status, const std::string& body, const std::string& contentType))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->Respond(requestId, status, body, contentType);
+}
+
+SCRIPT_API(FileGate_RespondJSON, bool(int requestId, int status, const std::string& json))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->RespondJSON(requestId, status, json);
+}
+
+SCRIPT_API(FileGate_RespondError, bool(int requestId, int status, const std::string& message))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->RespondError(requestId, status, message);
+}
+
+SCRIPT_API(FileGate_SetResponseHeader, bool(int requestId, const std::string& name, const std::string& value))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->SetResponseHeader(requestId, name, value);
+}
+
+// JSON builder for responses
+SCRIPT_API(FileGate_JsonStart, bool(int requestId))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->JsonStart(requestId);
+}
+
+SCRIPT_API(FileGate_JsonAddString, bool(int requestId, const std::string& key, const std::string& value))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->JsonAddString(requestId, key, value);
+}
+
+SCRIPT_API(FileGate_JsonAddInt, bool(int requestId, const std::string& key, int value))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->JsonAddInt(requestId, key, value);
+}
+
+SCRIPT_API(FileGate_JsonAddFloat, bool(int requestId, const std::string& key, float value))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->JsonAddFloat(requestId, key, value);
+}
+
+SCRIPT_API(FileGate_JsonAddBool, bool(int requestId, const std::string& key, bool value))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->JsonAddBool(requestId, key, value);
+}
+
+SCRIPT_API(FileGate_JsonAddNull, bool(int requestId, const std::string& key))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->JsonAddNull(requestId, key);
+}
+
+SCRIPT_API(FileGate_JsonStartObject, bool(int requestId, const std::string& key))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->JsonStartObject(requestId, key);
+}
+
+SCRIPT_API(FileGate_JsonEndObject, bool(int requestId))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->JsonEndObject(requestId);
+}
+
+SCRIPT_API(FileGate_JsonStartArray, bool(int requestId, const std::string& key))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->JsonStartArray(requestId, key);
+}
+
+SCRIPT_API(FileGate_JsonEndArray, bool(int requestId))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->JsonEndArray(requestId);
+}
+
+SCRIPT_API(FileGate_JsonSend, bool(int requestId, int status))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->JsonSend(requestId, status);
 }
 
 // Upload (Client) Natives
