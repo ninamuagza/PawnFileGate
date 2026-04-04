@@ -89,6 +89,12 @@ struct UploadRoute {
     CorruptAction onCorrupt  = CorruptAction::Delete;
     std::string quarantinePath = "quarantine/";
     bool        requireCrc32 = false;
+    
+    // REST API permissions for file routes
+    bool        allowList = false;
+    bool        allowDownload = false;
+    bool        allowDelete = false;
+    bool        allowInfo = false;
 };
 
 struct UploadEvent {
@@ -2237,6 +2243,311 @@ private:
                 Json::Num("activeRequests", static_cast<long long>(activeRequests.size()), false)
             }), "application/json");
         });
+        
+        // File route REST API endpoints
+        SetupFileRouteHandlers();
+    }
+    
+    void SetupFileRouteHandlers()
+    {
+        if (!httpServer) return;
+        
+        std::lock_guard<std::mutex> lock(routesMutex);
+        for (const auto& kv : routes) {
+            int capturedId = kv.first;
+            std::string endpoint = kv.second.endpoint;
+            
+            // GET {endpoint}/files - List files
+            httpServer->Get((endpoint + "/files").c_str(), 
+                [this, capturedId](const httplib::Request& req, httplib::Response& res) {
+                    HandleFileList(req, res, capturedId);
+                });
+            
+            // GET {endpoint}/files/{filename} - Download file
+            httpServer->Get((endpoint + "/files/(.+)").c_str(),
+                [this, capturedId](const httplib::Request& req, httplib::Response& res) {
+                    if (req.path.find("/info") != std::string::npos) return; // Skip if /info
+                    HandleFileDownload(req, res, capturedId);
+                });
+            
+            // GET {endpoint}/files/{filename}/info - File info
+            httpServer->Get((endpoint + "/files/(.+)/info").c_str(),
+                [this, capturedId](const httplib::Request& req, httplib::Response& res) {
+                    HandleFileInfo(req, res, capturedId);
+                });
+            
+            // DELETE {endpoint}/files/{filename} - Delete file
+            httpServer->Delete((endpoint + "/files/(.+)").c_str(),
+                [this, capturedId](const httplib::Request& req, httplib::Response& res) {
+                    HandleFileDelete(req, res, capturedId);
+                });
+        }
+    }
+    
+    bool CheckFileRouteAuth(const UploadRoute& route, const httplib::Request& req)
+    {
+        if (route.authorizedKeys.empty()) return true;
+        
+        auto auth = req.get_header_value("Authorization");
+        if (auth.empty()) return false;
+        
+        if (auth.rfind("Bearer ", 0) == 0) {
+            std::string token = auth.substr(7);
+            return route.authorizedKeys.count(token) > 0;
+        }
+        return false;
+    }
+    
+    void HandleFileList(const httplib::Request& req, httplib::Response& res, int routeId)
+    {
+        UploadRoute route;
+        {
+            std::lock_guard<std::mutex> lock(routesMutex);
+            auto it = routes.find(routeId);
+            if (it == routes.end()) {
+                res.status = 404;
+                res.set_content(Json::Obj({ Json::Str("error", "Route not found", false) }), "application/json");
+                return;
+            }
+            route = it->second;
+        }
+        
+        if (!route.allowList) {
+            res.status = 403;
+            res.set_content(Json::Obj({ Json::Str("error", "File listing not allowed", false) }), "application/json");
+            return;
+        }
+        
+        if (!CheckFileRouteAuth(route, req)) {
+            res.status = 401;
+            res.set_content(Json::Obj({ Json::Str("error", "Unauthorized", false) }), "application/json");
+            return;
+        }
+        
+        // Call Pawn callback for permission check
+        // For now, just list files
+        std::string destPath = serverRootPath + route.destinationPath;
+        std::vector<std::string> files;
+        
+        #ifdef _WIN32
+            std::string searchPath = destPath + "*";
+            WIN32_FIND_DATAA findData;
+            HANDLE hFind = FindFirstFileA(searchPath.c_str(), &findData);
+            if (hFind != INVALID_HANDLE_VALUE) {
+                do {
+                    if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+                        files.push_back(findData.cFileName);
+                    }
+                } while (FindNextFileA(hFind, &findData));
+                FindClose(hFind);
+            }
+        #else
+            DIR* dir = opendir(destPath.c_str());
+            if (dir) {
+                struct dirent* entry;
+                while ((entry = readdir(dir)) != nullptr) {
+                    if (entry->d_type == DT_REG) {
+                        files.push_back(entry->d_name);
+                    }
+                }
+                closedir(dir);
+            }
+        #endif
+        
+        std::string json = "{\"success\":true,\"count\":" + std::to_string(files.size()) + ",\"files\":[";
+        for (size_t i = 0; i < files.size(); ++i) {
+            if (i > 0) json += ",";
+            json += "\"" + Json::Escape(files[i]) + "\"";
+        }
+        json += "]}";
+        
+        res.set_content(json, "application/json");
+    }
+    
+    void HandleFileDownload(const httplib::Request& req, httplib::Response& res, int routeId)
+    {
+        UploadRoute route;
+        {
+            std::lock_guard<std::mutex> lock(routesMutex);
+            auto it = routes.find(routeId);
+            if (it == routes.end()) {
+                res.status = 404;
+                res.set_content(Json::Obj({ Json::Str("error", "Route not found", false) }), "application/json");
+                return;
+            }
+            route = it->second;
+        }
+        
+        if (!route.allowDownload) {
+            res.status = 403;
+            res.set_content(Json::Obj({ Json::Str("error", "File download not allowed", false) }), "application/json");
+            return;
+        }
+        
+        if (!CheckFileRouteAuth(route, req)) {
+            res.status = 401;
+            res.set_content(Json::Obj({ Json::Str("error", "Unauthorized", false) }), "application/json");
+            return;
+        }
+        
+        // Extract filename from path
+        std::string filename;
+        std::string pathPrefix = route.endpoint + "/files/";
+        if (req.path.rfind(pathPrefix, 0) == 0) {
+            filename = req.path.substr(pathPrefix.size());
+        }
+        
+        std::string safeName = SanitizeFilename(filename);
+        if (safeName.empty()) {
+            res.status = 400;
+            res.set_content(Json::Obj({ Json::Str("error", "Invalid filename", false) }), "application/json");
+            return;
+        }
+        
+        std::string fullPath = serverRootPath + route.destinationPath + safeName;
+        if (!FileUtils::FileExists(fullPath)) {
+            res.status = 404;
+            res.set_content(Json::Obj({ Json::Str("error", "File not found", false) }), "application/json");
+            return;
+        }
+        
+        // Read and send file
+        std::ifstream file(fullPath, std::ios::binary);
+        if (!file) {
+            res.status = 500;
+            res.set_content(Json::Obj({ Json::Str("error", "Failed to read file", false) }), "application/json");
+            return;
+        }
+        
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        
+        res.set_header("Content-Disposition", "attachment; filename=\"" + safeName + "\"");
+        res.set_content(buffer.str(), "application/octet-stream");
+    }
+    
+    void HandleFileInfo(const httplib::Request& req, httplib::Response& res, int routeId)
+    {
+        UploadRoute route;
+        {
+            std::lock_guard<std::mutex> lock(routesMutex);
+            auto it = routes.find(routeId);
+            if (it == routes.end()) {
+                res.status = 404;
+                res.set_content(Json::Obj({ Json::Str("error", "Route not found", false) }), "application/json");
+                return;
+            }
+            route = it->second;
+        }
+        
+        if (!route.allowInfo) {
+            res.status = 403;
+            res.set_content(Json::Obj({ Json::Str("error", "File info not allowed", false) }), "application/json");
+            return;
+        }
+        
+        if (!CheckFileRouteAuth(route, req)) {
+            res.status = 401;
+            res.set_content(Json::Obj({ Json::Str("error", "Unauthorized", false) }), "application/json");
+            return;
+        }
+        
+        // Extract filename from path
+        std::string filename;
+        std::string pathPrefix = route.endpoint + "/files/";
+        std::string pathSuffix = "/info";
+        if (req.path.rfind(pathPrefix, 0) == 0) {
+            filename = req.path.substr(pathPrefix.size());
+            if (filename.size() > pathSuffix.size() && 
+                filename.substr(filename.size() - pathSuffix.size()) == pathSuffix) {
+                filename = filename.substr(0, filename.size() - pathSuffix.size());
+            }
+        }
+        
+        std::string safeName = SanitizeFilename(filename);
+        if (safeName.empty()) {
+            res.status = 400;
+            res.set_content(Json::Obj({ Json::Str("error", "Invalid filename", false) }), "application/json");
+            return;
+        }
+        
+        std::string fullPath = serverRootPath + route.destinationPath + safeName;
+        if (!FileUtils::FileExists(fullPath)) {
+            res.status = 404;
+            res.set_content(Json::Obj({ Json::Str("error", "File not found", false) }), "application/json");
+            return;
+        }
+        
+        size_t fileSize = FileUtils::FileSize(fullPath);
+        std::int64_t modTime = FileUtils::GetFileModificationTime(fullPath);
+        uint32_t crc = CRC32::fileChecksum(fullPath);
+        
+        res.set_content(Json::Obj({
+            Json::Bool("success", true),
+            Json::Str("filename", safeName),
+            Json::Num("size", static_cast<long long>(fileSize)),
+            Json::Num("modified", modTime),
+            Json::Str("crc32", CRC32::toHex(crc), false)
+        }), "application/json");
+    }
+    
+    void HandleFileDelete(const httplib::Request& req, httplib::Response& res, int routeId)
+    {
+        UploadRoute route;
+        {
+            std::lock_guard<std::mutex> lock(routesMutex);
+            auto it = routes.find(routeId);
+            if (it == routes.end()) {
+                res.status = 404;
+                res.set_content(Json::Obj({ Json::Str("error", "Route not found", false) }), "application/json");
+                return;
+            }
+            route = it->second;
+        }
+        
+        if (!route.allowDelete) {
+            res.status = 403;
+            res.set_content(Json::Obj({ Json::Str("error", "File deletion not allowed", false) }), "application/json");
+            return;
+        }
+        
+        if (!CheckFileRouteAuth(route, req)) {
+            res.status = 401;
+            res.set_content(Json::Obj({ Json::Str("error", "Unauthorized", false) }), "application/json");
+            return;
+        }
+        
+        // Extract filename from path
+        std::string filename;
+        std::string pathPrefix = route.endpoint + "/files/";
+        if (req.path.rfind(pathPrefix, 0) == 0) {
+            filename = req.path.substr(pathPrefix.size());
+        }
+        
+        std::string safeName = SanitizeFilename(filename);
+        if (safeName.empty()) {
+            res.status = 400;
+            res.set_content(Json::Obj({ Json::Str("error", "Invalid filename", false) }), "application/json");
+            return;
+        }
+        
+        std::string fullPath = serverRootPath + route.destinationPath + safeName;
+        if (!FileUtils::FileExists(fullPath)) {
+            res.status = 404;
+            res.set_content(Json::Obj({ Json::Str("error", "File not found", false) }), "application/json");
+            return;
+        }
+        
+        if (FileUtils::RemoveFile(fullPath)) {
+            res.set_content(Json::Obj({
+                Json::Bool("success", true),
+                Json::Str("message", "File deleted"),
+                Json::Str("filename", safeName, false)
+            }), "application/json");
+        } else {
+            res.status = 500;
+            res.set_content(Json::Obj({ Json::Str("error", "Failed to delete file", false) }), "application/json");
+        }
     }
 
     bool StartHttpServer(int port)
@@ -2686,6 +2997,164 @@ public:
         it->second.authKeys.insert(key);
         it->second.requireAuth = true;
         return true;
+    }
+    
+    // File route permissions
+    bool SetAllowList(int routeId, bool allow)
+    {
+        std::lock_guard<std::mutex> lock(routesMutex);
+        auto it = routes.find(routeId);
+        if (it == routes.end()) return false;
+        it->second.allowList = allow;
+        return true;
+    }
+    
+    bool SetAllowDownload(int routeId, bool allow)
+    {
+        std::lock_guard<std::mutex> lock(routesMutex);
+        auto it = routes.find(routeId);
+        if (it == routes.end()) return false;
+        it->second.allowDownload = allow;
+        return true;
+    }
+    
+    bool SetAllowDelete(int routeId, bool allow)
+    {
+        std::lock_guard<std::mutex> lock(routesMutex);
+        auto it = routes.find(routeId);
+        if (it == routes.end()) return false;
+        it->second.allowDelete = allow;
+        return true;
+    }
+    
+    bool SetAllowInfo(int routeId, bool allow)
+    {
+        std::lock_guard<std::mutex> lock(routesMutex);
+        auto it = routes.find(routeId);
+        if (it == routes.end()) return false;
+        it->second.allowInfo = allow;
+        return true;
+    }
+    
+    // File operations
+    int GetRouteFileCount(int routeId)
+    {
+        std::string destPath;
+        {
+            std::lock_guard<std::mutex> lock(routesMutex);
+            auto it = routes.find(routeId);
+            if (it == routes.end()) return -1;
+            destPath = serverRootPath + it->second.destinationPath;
+        }
+        
+        int count = 0;
+        #ifdef _WIN32
+            std::string searchPath = destPath + "*";
+            WIN32_FIND_DATAA findData;
+            HANDLE hFind = FindFirstFileA(searchPath.c_str(), &findData);
+            if (hFind != INVALID_HANDLE_VALUE) {
+                do {
+                    if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+                        ++count;
+                    }
+                } while (FindNextFileA(hFind, &findData));
+                FindClose(hFind);
+            }
+        #else
+            DIR* dir = opendir(destPath.c_str());
+            if (dir) {
+                struct dirent* entry;
+                while ((entry = readdir(dir)) != nullptr) {
+                    if (entry->d_type == DT_REG) {
+                        ++count;
+                    }
+                }
+                closedir(dir);
+            }
+        #endif
+        return count;
+    }
+    
+    std::string GetRouteFileName(int routeId, int index)
+    {
+        std::string destPath;
+        {
+            std::lock_guard<std::mutex> lock(routesMutex);
+            auto it = routes.find(routeId);
+            if (it == routes.end()) return "";
+            destPath = serverRootPath + it->second.destinationPath;
+        }
+        
+        int count = 0;
+        std::string result;
+        
+        #ifdef _WIN32
+            std::string searchPath = destPath + "*";
+            WIN32_FIND_DATAA findData;
+            HANDLE hFind = FindFirstFileA(searchPath.c_str(), &findData);
+            if (hFind != INVALID_HANDLE_VALUE) {
+                do {
+                    if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+                        if (count == index) {
+                            result = findData.cFileName;
+                            break;
+                        }
+                        ++count;
+                    }
+                } while (FindNextFileA(hFind, &findData));
+                FindClose(hFind);
+            }
+        #else
+            DIR* dir = opendir(destPath.c_str());
+            if (dir) {
+                struct dirent* entry;
+                while ((entry = readdir(dir)) != nullptr) {
+                    if (entry->d_type == DT_REG) {
+                        if (count == index) {
+                            result = entry->d_name;
+                            break;
+                        }
+                        ++count;
+                    }
+                }
+                closedir(dir);
+            }
+        #endif
+        return result;
+    }
+    
+    bool DeleteRouteFile(int routeId, const std::string& filename)
+    {
+        std::string destPath;
+        {
+            std::lock_guard<std::mutex> lock(routesMutex);
+            auto it = routes.find(routeId);
+            if (it == routes.end()) return false;
+            destPath = serverRootPath + it->second.destinationPath;
+        }
+        
+        std::string safeName = SanitizeFilename(filename);
+        if (safeName.empty()) return false;
+        
+        std::string fullPath = destPath + safeName;
+        return FileUtils::RemoveFile(fullPath);
+    }
+    
+    size_t GetRouteFileSize(int routeId, const std::string& filename)
+    {
+        std::string destPath;
+        {
+            std::lock_guard<std::mutex> lock(routesMutex);
+            auto it = routes.find(routeId);
+            if (it == routes.end()) return 0;
+            destPath = serverRootPath + it->second.destinationPath;
+        }
+        
+        std::string safeName = SanitizeFilename(filename);
+        if (safeName.empty()) return 0;
+        
+        std::string fullPath = destPath + safeName;
+        return FileUtils::FileSize(fullPath);
     }
     
     // Request data access
@@ -3476,6 +3945,66 @@ SCRIPT_API(FileGate_JsonSend, bool(int requestId, int status))
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonSend(requestId, status);
+}
+
+// File Route Permission Natives
+SCRIPT_API(FileGate_AllowList, bool(int routeId, bool allow))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->SetAllowList(routeId, allow);
+}
+
+SCRIPT_API(FileGate_AllowDownload, bool(int routeId, bool allow))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->SetAllowDownload(routeId, allow);
+}
+
+SCRIPT_API(FileGate_AllowDelete, bool(int routeId, bool allow))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->SetAllowDelete(routeId, allow);
+}
+
+SCRIPT_API(FileGate_AllowInfo, bool(int routeId, bool allow))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->SetAllowInfo(routeId, allow);
+}
+
+// File Operation Natives
+SCRIPT_API(FileGate_GetFileCount, int(int routeId))
+{
+    auto c = GetComponent();
+    if (!c) return -1;
+    return c->GetRouteFileCount(routeId);
+}
+
+SCRIPT_API(FileGate_GetFileName, int(int routeId, int index, std::string& output, int outputSize))
+{
+    auto c = GetComponent();
+    if (!c) { output = ""; return 0; }
+    std::string name = c->GetRouteFileName(routeId, index);
+    output = name.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    return name.empty() ? 0 : 1;
+}
+
+SCRIPT_API(FileGate_DeleteFile, bool(int routeId, const std::string& filename))
+{
+    auto c = GetComponent();
+    if (!c) return false;
+    return c->DeleteRouteFile(routeId, filename);
+}
+
+SCRIPT_API(FileGate_GetFileSize, int(int routeId, const std::string& filename))
+{
+    auto c = GetComponent();
+    if (!c) return 0;
+    return static_cast<int>(c->GetRouteFileSize(routeId, filename));
 }
 
 // Upload (Client) Natives

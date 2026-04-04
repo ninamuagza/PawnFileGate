@@ -562,6 +562,91 @@ native bool:FileGate_JsonEndArray(requestId);
 native bool:FileGate_JsonSend(requestId, status = 200);
 
 // ─────────────────────────────────────────────────────────────────────────────
+// File Route Permissions
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Allow listing files via REST API.
+ * Endpoint: GET {route}/files
+ *
+ * @param routeId Route ID
+ * @param allow true to allow, false to deny
+ * @return true on success
+ */
+native bool:FileGate_AllowList(routeId, bool:allow);
+
+/**
+ * Allow downloading files via REST API.
+ * Endpoint: GET {route}/files/{filename}
+ *
+ * @param routeId Route ID
+ * @param allow true to allow, false to deny
+ * @return true on success
+ */
+native bool:FileGate_AllowDownload(routeId, bool:allow);
+
+/**
+ * Allow deleting files via REST API.
+ * Endpoint: DELETE {route}/files/{filename}
+ *
+ * @param routeId Route ID
+ * @param allow true to allow, false to deny
+ * @return true on success
+ */
+native bool:FileGate_AllowDelete(routeId, bool:allow);
+
+/**
+ * Allow getting file info via REST API.
+ * Endpoint: GET {route}/files/{filename}/info
+ *
+ * @param routeId Route ID
+ * @param allow true to allow, false to deny
+ * @return true on success
+ */
+native bool:FileGate_AllowInfo(routeId, bool:allow);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// File Operations (Pawn-side)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Gets the number of files in a route's directory.
+ *
+ * @param routeId Route ID
+ * @return Number of files, or -1 on error
+ */
+native FileGate_GetFileCount(routeId);
+
+/**
+ * Gets a filename by index from a route's directory.
+ *
+ * @param routeId Route ID
+ * @param index File index (0-based)
+ * @param output Output buffer
+ * @param outputSize Buffer size
+ * @return 1 on success, 0 if not found
+ */
+native FileGate_GetFileName(routeId, index, output[], outputSize);
+
+/**
+ * Deletes a file from a route's directory.
+ *
+ * @param routeId Route ID
+ * @param filename Filename to delete
+ * @return true on success
+ */
+native bool:FileGate_DeleteFile(routeId, const filename[]);
+
+/**
+ * Gets the size of a file in a route's directory.
+ *
+ * @param routeId Route ID
+ * @param filename Filename
+ * @return File size in bytes, or 0 if not found
+ */
+native FileGate_GetFileSize(routeId, const filename[]);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Outgoing Upload Client
 // ─────────────────────────────────────────────────────────────────────────────
 
