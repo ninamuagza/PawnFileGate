@@ -1,8 +1,13 @@
-- [Home](./Home.md)
-- [Getting Started](./Getting-Started.md)
-- [API Reference](./API-Reference.md)
-- [JSON Node Guide](./JSON-Node-Guide.md)
-- [Outbound HTTP Guide](./Outbound-HTTP-Guide.md)
-- [WebSocket Guide](./WebSocket-Guide.md)
-- [Callbacks](./Callbacks.md)
-- [Use Cases](./Use-Cases.md)
+### Overview
+- [Home](Home)
+- [Getting Started](Getting-Started)
+- [API Reference](API-Reference)
+
+### Guides
+- [JSON Node Guide](JSON-Node-Guide)
+- [Outbound HTTP Guide](Outbound-HTTP-Guide)
+- [WebSocket Guide](WebSocket-Guide)
+
+### Operations
+- [Callbacks](Callbacks)
+- [Use Cases](Use-Cases)

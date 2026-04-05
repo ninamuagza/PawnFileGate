@@ -1,14 +1,42 @@
 # Callbacks
 
-## Incoming Upload
+PawnREST uses callback-driven flow for upload events, outbound requests, and websocket clients.
+
+## Behavior Notes
+
+1. Declare callback signatures in your Pawn code (typically as `forward` for global callbacks).
+2. Per-request callbacks are named dynamically when you call `REST_Request`, `REST_RequestJSON`, `REST_WebSocketClient`, or `REST_JsonWebSocketClient`.
+3. In most gamemode setups, callbacks should return `1`.
+
+## Incoming Upload Callbacks
+
+### Fired on successful inbound upload
 
 ```pawn
-forward OnFileUploaded(uploadId, routeId, const endpoint[], const filename[], const filepath[], const crc32[], crcMatched);
+forward OnFileUploaded(
+    uploadId,
+    routeId,
+    const endpoint[],
+    const filename[],
+    const filepath[],
+    const crc32[],
+    crcMatched
+);
+```
+
+### Fired on inbound upload failure
+
+```pawn
 forward OnFileFailedUpload(uploadId, const reason[], const crc32[]);
+```
+
+### Fired during inbound upload progress
+
+```pawn
 forward OnUploadProgress(uploadId, percent);
 ```
 
-## Outgoing Upload
+## Outgoing Upload Callbacks
 
 ```pawn
 forward OnFileUploadStarted(uploadId);
@@ -18,43 +46,47 @@ forward OnFileUploadFailed(uploadId, const errorMessage[]);
 forward OnFileUploadFailure(uploadId, errorCode, const errorType[], const errorMessage[], httpStatus);
 ```
 
-## Outbound HTTP Request
+`OnFileUploadFailure` is the structured variant with typed metadata (`PAWNREST_ERR_*`, error type string, and HTTP status when available).
 
-Per-request callback from `REST_Request`:
+## Outbound HTTP Request Callbacks
+
+### Per-request text callback (`REST_Request`)
 
 ```pawn
 public YourTextCallback(requestId, httpStatus, const data[], dataLen)
 ```
 
-Per-request callback from `REST_RequestJSON`:
+### Per-request JSON callback (`REST_RequestJSON`)
 
 ```pawn
 public YourJsonCallback(requestId, httpStatus, nodeId)
 ```
 
-Global failure callbacks:
+### Global failure callbacks
 
 ```pawn
 forward OnRequestFailure(requestId, errorCode, const errorMessage[], len);
 forward OnRequestFailureDetailed(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
 ```
 
-## WebSocket
+## WebSocket Callbacks
 
-Text websocket callback:
+### Per-socket text callback
 
 ```pawn
 public YourSocketTextCallback(socketId, const data[], dataLen)
 ```
 
-JSON websocket callback:
+### Per-socket JSON callback
 
 ```pawn
 public YourSocketJsonCallback(socketId, nodeId)
 ```
 
-Disconnect callback:
+### Global disconnect callback
 
 ```pawn
 forward OnWebSocketDisconnect(socketId, bool:isJson, status, const reason[], reasonLen, errorCode);
 ```
+
+`status` is the websocket close code; `errorCode` maps to `PAWNREST_ERR_*` for transport/parser failures.

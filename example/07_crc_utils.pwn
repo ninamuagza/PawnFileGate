@@ -1,4 +1,4 @@
-#include <a_samp>
+#include <open.mp>
 #include <PawnREST>
 
 public OnPlayerCommandText(playerid, cmdtext[])

@@ -12,22 +12,13 @@
 // HTTP Methods (for REST API)
 // ─────────────────────────────────────────────────────────────────────────────
 
-#define HTTP_GET               0
-#define HTTP_POST              1
-#define HTTP_PUT               2
-#define HTTP_PATCH             3
-#define HTTP_DELETE            4
-#define HTTP_HEAD              5
-#define HTTP_OPTIONS           6
-
-// HTTP method aliases
-#define HTTP_METHOD_GET        HTTP_GET
-#define HTTP_METHOD_POST       HTTP_POST
-#define HTTP_METHOD_PUT        HTTP_PUT
-#define HTTP_METHOD_PATCH      HTTP_PATCH
-#define HTTP_METHOD_DELETE     HTTP_DELETE
-#define HTTP_METHOD_HEAD       HTTP_HEAD
-#define HTTP_METHOD_OPTIONS    HTTP_OPTIONS
+#define HTTP_METHOD_GET               0
+#define HTTP_METHOD_POST              1
+#define HTTP_METHOD_PUT               2
+#define HTTP_METHOD_PATCH             3
+#define HTTP_METHOD_DELETE            4
+#define HTTP_METHOD_HEAD              5
+#define HTTP_METHOD_OPTIONS           6
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Conflict Modes
@@ -270,11 +261,11 @@ native bool:REST_RemoveRoute(routeId) = PawnREST_RemoveRoute;
  * Registers a custom REST API endpoint.
  *
  * Example:
- *     REST_Route(HTTP_GET, "/api/players", "OnGetPlayers");
- *     REST_Route(HTTP_POST, "/api/ban", "OnPostBan");
- *     REST_Route(HTTP_GET, "/api/player/{id}", "OnGetPlayer");
+ *     REST_Route(HTTP_METHOD_GET, "/api/players", "OnGetPlayers");
+ *     REST_Route(HTTP_METHOD_POST, "/api/ban", "OnPostBan");
+ *     REST_Route(HTTP_METHOD_GET, "/api/player/{id}", "OnGetPlayer");
  *
- * @param method HTTP method (HTTP_GET, HTTP_POST, HTTP_PUT, HTTP_PATCH, HTTP_DELETE, HTTP_HEAD, HTTP_OPTIONS)
+ * @param method HTTP method (HTTP_METHOD_GET, HTTP_METHOD_POST, HTTP_METHOD_PUT, HTTP_METHOD_PATCH, HTTP_METHOD_DELETE, HTTP_METHOD_HEAD, HTTP_METHOD_OPTIONS)
  * @param endpoint Route path (supports {param} placeholders)
  * @param callback Pawn callback function name
  * @return routeId, or -1 on failure
@@ -317,7 +308,7 @@ native REST_GetRequestIP(requestId, output[], outputSize) = PawnREST_GetRequestI
  * Gets the HTTP method of the request.
  *
  * @param requestId Request ID
- * @return HTTP method constant (HTTP_GET, HTTP_POST, etc.) or -1 on error
+ * @return HTTP method constant (HTTP_METHOD_GET, HTTP_METHOD_POST, etc.) or -1 on error
  */
 native REST_GetRequestMethod(requestId) = PawnREST_GetRequestMethod;
 

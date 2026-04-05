@@ -1,11 +1,11 @@
 # Outbound HTTP Guide
 
-This guide focuses on outbound HTTP APIs.
+Use this guide to integrate external HTTP services (auth, leaderboard, billing, telemetry, etc.) from Pawn.
 
-## 1. Create a client
+## 1. Create a Reusable Client
 
 ```pawn
-new g_API;
+new g_API = -1;
 
 public OnGameModeInit()
 {
@@ -14,28 +14,36 @@ public OnGameModeInit()
     REST_RequestHeadersAppend(headers, sizeof(headers), "X-Server", "my-openmp");
 
     g_API = REST_RequestsClient("https://api.example.com", headers, true);
+    REST_SetRequestsClientHeader(g_API, "User-Agent", "PawnREST/1.0");
     return 1;
 }
 ```
 
-## 2. Send a text request
+## 2. Send a Text Request
 
 ```pawn
-REST_Request(g_API, "/status", HTTP_METHOD_GET, "OnStatus");
+new requestId = REST_Request(g_API, "/status", HTTP_METHOD_GET, "OnStatus");
 
 public OnStatus(requestId, httpStatus, const data[], dataLen)
 {
-    printf("request=%d status=%d body=%s", requestId, httpStatus, data);
+    printf("request=%d status=%d len=%d body=%s", requestId, httpStatus, dataLen, data);
     return 1;
 }
 ```
 
-## 3. Send a JSON request
+Callback signature for `REST_Request`:
 
 ```pawn
-new payload = JsonObject();
-JsonSetString(payload, "event", "player_join");
-JsonSetInt(payload, "playerId", 7);
+public YourTextCallback(requestId, httpStatus, const data[], dataLen)
+```
+
+## 3. Send a JSON Request
+
+```pawn
+new payload = JsonObject(
+    "event", JsonString("player_join"),
+    "playerId", JsonInt(7)
+);
 
 REST_RequestJSON(g_API, "/events", HTTP_METHOD_POST, "OnEventPosted", payload);
 JsonCleanup(payload);
@@ -52,30 +60,79 @@ public OnEventPosted(requestId, httpStatus, nodeId)
 }
 ```
 
-## 4. Error callbacks
+Callback signature for `REST_RequestJSON`:
+
+```pawn
+public YourJsonCallback(requestId, httpStatus, nodeId)
+```
+
+## 4. Error Callbacks
+
+Transport/internal failures are emitted globally:
 
 ```pawn
 forward OnRequestFailure(requestId, errorCode, const errorMessage[], len);
 forward OnRequestFailureDetailed(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
 ```
 
-Use `errorCode` (`PAWNREST_ERR_*`) for quick classification:
-- timeout/network/tls
-- invalid url / unsupported scheme
-- json parse error (for `REST_RequestJSON`)
+Typical `PAWNREST_ERR_*` categories:
 
-## 5. Optional status polling
+- invalid URL or unsupported scheme
+- TLS and certificate errors
+- timeout/network failures
+- JSON parse failures in JSON request/response path
+
+## 5. Request State and Cancellation
 
 ```pawn
-new status = REST_GetRequestStatus(requestId);      // REQUEST_*
-new code = REST_GetRequestErrorCode(requestId);
-new http = REST_GetRequestHttpStatus(requestId);
+new bool:cancelled = REST_CancelRequest(requestId);
+new status = REST_GetRequestStatus(requestId);          // REQUEST_*
+new httpStatus = REST_GetRequestHttpStatus(requestId);
+new errorCode = REST_GetRequestErrorCode(requestId);    // PAWNREST_ERR_*
 ```
 
-## 6. Header format
+For completed requests, you can also retrieve the raw response body:
 
-`REST_Request` / `REST_RequestJSON` accepts a header string with this format:
+```pawn
+new buffer[1024];
+if (REST_GetRequestResponse(requestId, buffer, sizeof(buffer)))
+{
+    printf("cached-response=%s", buffer);
+}
+```
+
+## 6. Per-Request Extra Headers
+
+`REST_Request` and `REST_RequestJSON` accept `headers` as:
 
 ```text
 Key: Value|Key2: Value2|Key3: Value3
 ```
+
+Use helper stocks when possible:
+
+```pawn
+new headers[256];
+REST_RequestHeaders(headers, sizeof(headers), "X-Trace-Id", "abc-123");
+REST_RequestHeadersAppend(headers, sizeof(headers), "X-Region", "ap-southeast");
+```
+
+## 7. Cleanup
+
+```pawn
+public OnGameModeExit()
+{
+    if (g_API != -1)
+    {
+        REST_RemoveRequestsClient(g_API);
+    }
+    return 1;
+}
+```
+
+## 8. Operational Recommendations
+
+1. Keep one client per external service and reuse it.
+2. Use short callback names scoped by domain (`OnAuthResponse`, `OnBillingResponse`, etc.).
+3. Always implement `OnRequestFailureDetailed` in production.
+4. Prefer JSON request/response for typed payloads and future compatibility.

@@ -31,8 +31,8 @@ jobs:
 
       - name: Prepare Docker images (prebuilt + fallback)
         run: |
-          docker pull omp-easing-functions/build:ubuntu-18.04 || docker build -t omp-easing-functions/build:ubuntu-18.04 docker/build_ubuntu-18.04/
-          docker pull omp-easing-functions/build:ubuntu-22.04-static-ssl || docker build -t omp-easing-functions/build:ubuntu-22.04-static-ssl docker/build_ubuntu-22.04-static-ssl/
+          docker pull pawnrest/build:ubuntu-18.04 || docker build -t pawnrest/build:ubuntu-18.04 docker/build_ubuntu-18.04/
+          docker pull pawnrest/build:ubuntu-22.04-static-ssl || docker build -t pawnrest/build:ubuntu-22.04-static-ssl docker/build_ubuntu-22.04-static-ssl/
 
       - name: Run build in Docker container
         env:
@@ -45,7 +45,7 @@ jobs:
             -v "${{ github.workspace }}/docker/build:/code/build" \
             -e CONFIG=${CONFIG} \
             -e BUILD_SERVER=${BUILD_SERVER} \
-            omp-easing-functions/build:ubuntu-18.04
+            pawnrest/build:ubuntu-18.04
 
       - name: Run static SSL build in Docker container
         env:
@@ -61,7 +61,7 @@ jobs:
             -e BUILD_DIR=build-static-ssl \
             -e PAWNREST_ENABLE_TLS=ON \
             -e PAWNREST_TLS_STATIC_OPENSSL=ON \
-            omp-easing-functions/build:ubuntu-22.04-static-ssl
+            pawnrest/build:ubuntu-22.04-static-ssl
 
       - name: Normalize artifact permissions
         run: |

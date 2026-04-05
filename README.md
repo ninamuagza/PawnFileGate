@@ -56,14 +56,14 @@ The function prefix is `REST_*` (for example `REST_Start`, `REST_Route`, `REST_R
 To enable TLS/HTTPS in source builds, configure with `-DPAWNREST_ENABLE_TLS=ON` and provide OpenSSL libraries compatible with your target architecture.
 For release builds, CI also publishes a separate Linux static-OpenSSL artifact.
 For local Docker builds of the static-SSL variant, run `BUILD_DIR=build-static-ssl PAWNREST_ENABLE_TLS=ON PAWNREST_TLS_STATIC_OPENSSL=ON ./docker/build.sh`.
-`docker/build.sh` first tries prebuilt `omp-easing-functions/build:*` images and falls back to local Dockerfile builds only when needed.
+`docker/build.sh` first tries prebuilt `pawnrest/build:*` images and falls back to local Dockerfile builds only when needed.
 
 ---
 
 ## Quick Start
 
 ```pawn
-#include <a_samp>
+#include <open.mp>
 #include <PawnREST>
 
 new g_MapRoute = -1;
@@ -83,7 +83,7 @@ public OnGameModeInit()
     REST_AllowDownload(g_MapRoute, true);
     
     // === CUSTOM REST API ===
-    g_ApiPlayers = REST_Route(HTTP_GET, "/api/players", "OnGetPlayers");
+    g_ApiPlayers = REST_Route(HTTP_METHOD_GET, "/api/players", "OnGetPlayers");
     REST_SetRouteAuth(g_ApiPlayers, "api-secret-key");
     
     return 1;
@@ -114,13 +114,13 @@ public OnFileUploaded(uploadId, routeId, const endpoint[], const filename[],
 
 | Constant | Method |
 |----------|--------|
-| `HTTP_GET` | GET |
-| `HTTP_POST` | POST |
-| `HTTP_PUT` | PUT |
-| `HTTP_PATCH` | PATCH |
-| `HTTP_DELETE` | DELETE |
-| `HTTP_HEAD` | HEAD |
-| `HTTP_OPTIONS` | OPTIONS |
+| `HTTP_METHOD_GET` | GET |
+| `HTTP_METHOD_POST` | POST |
+| `HTTP_METHOD_PUT` | PUT |
+| `HTTP_METHOD_PATCH` | PATCH |
+| `HTTP_METHOD_DELETE` | DELETE |
+| `HTTP_METHOD_HEAD` | HEAD |
+| `HTTP_METHOD_OPTIONS` | OPTIONS |
 
 ---
 
@@ -178,10 +178,10 @@ native bool:REST_RemoveAPIRoute(routeId);
 native bool:REST_SetRouteAuth(routeId, const key[]);
 
 // Examples:
-REST_Route(HTTP_GET, "/api/server", "OnGetServer");
-REST_Route(HTTP_POST, "/api/ban", "OnPostBan");
-REST_Route(HTTP_GET, "/api/player/{id}", "OnGetPlayer");  // URL params
-REST_Route(HTTP_DELETE, "/api/vehicle/{id}", "OnDeleteVehicle");
+REST_Route(HTTP_METHOD_GET, "/api/server", "OnGetServer");
+REST_Route(HTTP_METHOD_POST, "/api/ban", "OnPostBan");
+REST_Route(HTTP_METHOD_GET, "/api/player/{id}", "OnGetPlayer");  // URL params
+REST_Route(HTTP_METHOD_DELETE, "/api/vehicle/{id}", "OnDeleteVehicle");
 ```
 
 ---
@@ -478,7 +478,7 @@ curl -H "Authorization: Bearer upload-secret-key" \
 ## Complete Example
 
 ```pawn
-#include <a_samp>
+#include <open.mp>
 #include <PawnREST>
 
 new g_MapRoute = -1;
@@ -495,10 +495,10 @@ public OnGameModeInit()
     REST_AllowInfo(g_MapRoute, true);
     
     // Custom API routes
-    REST_Route(HTTP_GET, "/api/server", "API_GetServer");
-    REST_Route(HTTP_GET, "/api/players", "API_GetPlayers");
-    REST_Route(HTTP_POST, "/api/announce", "API_PostAnnounce");
-    REST_Route(HTTP_GET, "/api/player/{id}", "API_GetPlayer");
+    REST_Route(HTTP_METHOD_GET, "/api/server", "API_GetServer");
+    REST_Route(HTTP_METHOD_GET, "/api/players", "API_GetPlayers");
+    REST_Route(HTTP_METHOD_POST, "/api/announce", "API_PostAnnounce");
+    REST_Route(HTTP_METHOD_GET, "/api/player/{id}", "API_GetPlayer");
     
     return 1;
 }

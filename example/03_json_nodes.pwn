@@ -1,10 +1,10 @@
-#include <a_samp>
+#include <open.mp>
 #include <PawnREST>
 
 public OnGameModeInit()
 {
     REST_Start(8080);
-    REST_Route(HTTP_POST, "/api/json-test", "API_JsonTest");
+    REST_Route(HTTP_METHOD_POST, "/api/json-test", "API_JsonTest");
 
     new parsed = JsonParse("{\"server\":\"PawnREST\",\"online\":42}");
     if (parsed != -1)

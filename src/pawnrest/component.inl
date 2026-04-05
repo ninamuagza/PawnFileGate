@@ -2474,12 +2474,9 @@ public:
         FileUtils::CreateDirectory(serverRootPath + Config::TEMP_DIR);
 
         core->printLn(" ");
-        core->printLn("  open.mp pawnrest v3 loaded!");
-        core->printLn("  Features   : RECEIVE (HTTP Server) + UPLOAD/REQUEST (HTTP Client) + WEBSOCKET (Client)");
-        core->printLn("  Modes      : RAW + MULTIPART");
-        core->printLn("  Transport  : HTTP/HTTPS + WS + optional WSS (TLS)");
-        core->printLn("  Temp Dir   : %s", Config::TEMP_DIR);
-        core->printLn("  Root Path  : %s", serverRootPath.c_str());
+        core->printLn("  PawnREST is ready.");
+        core->printLn("  Root path: %s", serverRootPath.c_str());
+        core->printLn("  Temp dir : %s", Config::TEMP_DIR);
         core->printLn(" ");
 
         setAmxLookups(core);

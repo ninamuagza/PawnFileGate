@@ -1,4 +1,4 @@
-#include <a_samp>
+#include <open.mp>
 #include <PawnREST>
 
 new g_ApiClient = -1;

@@ -1,4 +1,4 @@
-#include <a_samp>
+#include <open.mp>
 #include <PawnREST>
 
 new g_HealthRoute = -1;
@@ -10,13 +10,13 @@ stock GetMethodName(method, output[], outputSize)
 {
     switch (method)
     {
-        case HTTP_GET: format(output, outputSize, "GET");
-        case HTTP_POST: format(output, outputSize, "POST");
-        case HTTP_PUT: format(output, outputSize, "PUT");
-        case HTTP_PATCH: format(output, outputSize, "PATCH");
-        case HTTP_DELETE: format(output, outputSize, "DELETE");
-        case HTTP_HEAD: format(output, outputSize, "HEAD");
-        case HTTP_OPTIONS: format(output, outputSize, "OPTIONS");
+        case HTTP_METHOD_GET: format(output, outputSize, "GET");
+        case HTTP_METHOD_POST: format(output, outputSize, "POST");
+        case HTTP_METHOD_PUT: format(output, outputSize, "PUT");
+        case HTTP_METHOD_PATCH: format(output, outputSize, "PATCH");
+        case HTTP_METHOD_DELETE: format(output, outputSize, "DELETE");
+        case HTTP_METHOD_HEAD: format(output, outputSize, "HEAD");
+        case HTTP_METHOD_OPTIONS: format(output, outputSize, "OPTIONS");
         default: format(output, outputSize, "UNKNOWN");
     }
 }
@@ -25,10 +25,10 @@ public OnGameModeInit()
 {
     REST_Start(8080);
 
-    g_HealthRoute = REST_Route(HTTP_GET, "/api/health", "API_Health");
-    g_EchoRoute = REST_Route(HTTP_POST, "/api/echo", "API_Echo");
-    g_HeadRoute = REST_Route(HTTP_HEAD, "/api/ping", "API_HeadPing");
-    g_OptionsRoute = REST_Route(HTTP_OPTIONS, "/api/ping", "API_OptionsPing");
+    g_HealthRoute = REST_Route(HTTP_METHOD_GET, "/api/health", "API_Health");
+    g_EchoRoute = REST_Route(HTTP_METHOD_POST, "/api/echo", "API_Echo");
+    g_HeadRoute = REST_Route(HTTP_METHOD_HEAD, "/api/ping", "API_HeadPing");
+    g_OptionsRoute = REST_Route(HTTP_METHOD_OPTIONS, "/api/ping", "API_OptionsPing");
 
     REST_SetRouteAuth(g_EchoRoute, "api-secret");
     return 1;
