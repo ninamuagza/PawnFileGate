@@ -38,8 +38,13 @@ namespace FileUtils {
     }
 
     inline std::string GetCurrentWorkingDirectory() {
-        char cwd[PATH_MAX];
-        if (getcwd(cwd, sizeof(cwd)) != nullptr) {
+        #ifdef _WIN32
+            char cwd[MAX_PATH];
+            if (_getcwd(cwd, static_cast<int>(sizeof(cwd))) != nullptr) {
+        #else
+            char cwd[PATH_MAX];
+            if (getcwd(cwd, sizeof(cwd)) != nullptr) {
+        #endif
             std::string result(cwd);
             if (!result.empty() && result.back() != '/')
                 result += '/';
