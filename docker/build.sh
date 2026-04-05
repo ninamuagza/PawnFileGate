@@ -19,10 +19,26 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 [[ -z "$PAWNREST_TLS_STATIC_OPENSSL" ]] \
 && tls_static=OFF \
 || tls_static="$PAWNREST_TLS_STATIC_OPENSSL"
+[[ -z "$DOCKER_IMAGE" ]] \
+&& docker_image="" \
+|| docker_image="$DOCKER_IMAGE"
+[[ -z "$DOCKERFILE_DIR" ]] \
+&& docker_dir="" \
+|| docker_dir="$DOCKERFILE_DIR"
+
+if [[ -z "$docker_image" || -z "$docker_dir" ]]; then
+    if [[ "${tls_enabled^^}" == "ON" && "${tls_static^^}" == "ON" ]]; then
+        docker_image="pawnrest/build:ubuntu-22.04-static-ssl"
+        docker_dir="${SCRIPT_DIR}/build_ubuntu-22.04-static-ssl/"
+    else
+        docker_image="pawnrest/build:ubuntu-18.04"
+        docker_dir="${SCRIPT_DIR}/build_ubuntu-18.04/"
+    fi
+fi
 
 docker build \
-    -t pawnrest/build:ubuntu-18.04 \
-    "${SCRIPT_DIR}/build_ubuntu-18.04/" \
+    -t "${docker_image}" \
+    "${docker_dir}" \
 || exit 1
 
 folders=("${build_dir}")
@@ -44,4 +60,4 @@ docker run \
     -e BUILD_DIR=${build_dir} \
     -e PAWNREST_ENABLE_TLS=${tls_enabled} \
     -e PAWNREST_TLS_STATIC_OPENSSL=${tls_static} \
-    pawnrest/build:ubuntu-18.04
+    "${docker_image}"

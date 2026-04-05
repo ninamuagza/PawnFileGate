@@ -33,6 +33,10 @@ jobs:
         run: |
           docker build -t pawnrest/build:ubuntu-18.04 docker/build_ubuntu-18.04/
 
+      - name: Build Docker image (static SSL)
+        run: |
+          docker build -t pawnrest/build:ubuntu-22.04-static-ssl docker/build_ubuntu-22.04-static-ssl/
+
       - name: Run build in Docker container
         env:
           CONFIG: ${{ env.CONFIG }}
@@ -60,7 +64,7 @@ jobs:
             -e BUILD_DIR=build-static-ssl \
             -e PAWNREST_ENABLE_TLS=ON \
             -e PAWNREST_TLS_STATIC_OPENSSL=ON \
-            pawnrest/build:ubuntu-18.04
+            pawnrest/build:ubuntu-22.04-static-ssl
 
       - name: Strip Linux binaries
         run: |
