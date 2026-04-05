@@ -28,6 +28,6 @@ Structured documentation for PawnREST APIs and server-client implementation use 
 
 ## Usage Philosophy
 
-1. **Inbound API**: use `PawnREST_Route` with Pawn callbacks.
+1. **Inbound API**: use `REST_Route` with Pawn callbacks.
 2. **Outbound API**: use `RequestsClient` with `Request` / `RequestJSON`.
 3. **JSON**: use the node API (`JsonObject`, `JsonSet*`, `JsonGet*`, `RespondNode`).

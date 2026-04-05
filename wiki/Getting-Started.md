@@ -15,8 +15,8 @@
 ```pawn
 public OnGameModeInit()
 {
-    PawnREST_Start(8080); // HTTP
-    // PawnREST_StartTLS(8443, "cert.pem", "key.pem"); // HTTPS
+    REST_Start(8080); // HTTP
+    // REST_StartTLS(8443, "cert.pem", "key.pem"); // HTTPS
     return 1;
 }
 ```
@@ -28,10 +28,10 @@ new g_MapRoute = -1;
 
 public OnGameModeInit()
 {
-    PawnREST_Start(8080);
-    g_MapRoute = PawnREST_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
-    PawnREST_AddKey(g_MapRoute, "upload-secret");
-    PawnREST_AllowList(g_MapRoute, true);
+    REST_Start(8080);
+    g_MapRoute = REST_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
+    REST_AddKey(g_MapRoute, "upload-secret");
+    REST_AllowList(g_MapRoute, true);
     return 1;
 }
 ```
@@ -41,7 +41,7 @@ public OnGameModeInit()
 ```pawn
 public OnGameModeInit()
 {
-    PawnREST_Route(HTTP_GET, "/api/healthz", "API_Healthz");
+    REST_Route(HTTP_GET, "/api/healthz", "API_Healthz");
     return 1;
 }
 
@@ -58,7 +58,7 @@ public API_Healthz(requestId)
 ## 5. Endpoint with JSON body
 
 ```pawn
-PawnREST_Route(HTTP_POST, "/api/announce", "API_Announce");
+REST_Route(HTTP_POST, "/api/announce", "API_Announce");
 
 public API_Announce(requestId)
 {

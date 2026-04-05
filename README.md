@@ -40,6 +40,9 @@ API documentation and use-case guides are available in [`wiki/`](./wiki/):
 3. Copy `PawnREST.inc` to your Pawn compiler includes directory
 4. Add `#include <PawnREST>` to your script
 
+The preferred function prefix is now `REST_*` (for example `REST_Start`, `REST_Route`, `REST_RegisterRoute`).
+`PawnREST_*` names are still supported for backward compatibility.
+
 To enable TLS/HTTPS in source builds, configure with `-DPAWNREST_ENABLE_TLS=ON` and provide OpenSSL libraries compatible with your target architecture.
 For release builds, CI also publishes a separate Linux static-OpenSSL artifact.
 For local Docker builds of the static-SSL variant, run `BUILD_DIR=build-static-ssl PAWNREST_ENABLE_TLS=ON PAWNREST_TLS_STATIC_OPENSSL=ON ./docker/build.sh`.
@@ -59,19 +62,19 @@ new g_ApiPlayers = -1;
 public OnGameModeInit()
 {
     // Start HTTP server on port 8080
-    PawnREST_Start(8080);
+    REST_Start(8080);
     
     // === FILE UPLOAD ROUTE ===
-    g_MapRoute = PawnREST_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
-    PawnREST_AddKey(g_MapRoute, "upload-secret-key");
+    g_MapRoute = REST_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
+    REST_AddKey(g_MapRoute, "upload-secret-key");
     
     // Enable REST API for files
-    PawnREST_AllowList(g_MapRoute, true);
-    PawnREST_AllowDownload(g_MapRoute, true);
+    REST_AllowList(g_MapRoute, true);
+    REST_AllowDownload(g_MapRoute, true);
     
     // === CUSTOM REST API ===
-    g_ApiPlayers = PawnREST_Route(HTTP_GET, "/api/players", "OnGetPlayers");
-    PawnREST_SetRouteAuth(g_ApiPlayers, "api-secret-key");
+    g_ApiPlayers = REST_Route(HTTP_GET, "/api/players", "OnGetPlayers");
+    REST_SetRouteAuth(g_ApiPlayers, "api-secret-key");
     
     return 1;
 }
@@ -115,12 +118,12 @@ public OnFileUploaded(uploadId, routeId, const endpoint[], const filename[],
 
 ```pawn
 // Start/stop HTTP server
-native bool:PawnREST_Start(port);
-native bool:PawnREST_StartTLS(port, const certPath[], const keyPath[]);
-native bool:PawnREST_Stop();
-native PawnREST_IsRunning();
-native PawnREST_GetPort();
-native PawnREST_IsTLSEnabled();
+native bool:REST_Start(port);
+native bool:REST_StartTLS(port, const certPath[], const keyPath[]);
+native bool:REST_Stop();
+native REST_IsRunning();
+native REST_GetPort();
+native REST_IsTLSEnabled();
 ```
 
 ---
@@ -129,29 +132,29 @@ native PawnREST_IsTLSEnabled();
 
 ```pawn
 // Register upload endpoint
-native PawnREST_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb);
+native REST_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb);
 
 // Authorization
-native bool:PawnREST_AddKey(routeId, const key[]);
-native bool:PawnREST_RemoveKey(routeId, const key[]);
+native bool:REST_AddKey(routeId, const key[]);
+native bool:REST_RemoveKey(routeId, const key[]);
 
 // Settings
-native bool:PawnREST_SetConflict(routeId, mode);      // CONFLICT_RENAME/OVERWRITE/REJECT
-native bool:PawnREST_SetCorruptAction(routeId, act);  // CORRUPT_DELETE/QUARANTINE/KEEP
-native bool:PawnREST_SetRequireCRC32(routeId, bool:required);
-native bool:PawnREST_RemoveRoute(routeId);
+native bool:REST_SetConflict(routeId, mode);      // CONFLICT_RENAME/OVERWRITE/REJECT
+native bool:REST_SetCorruptAction(routeId, act);  // CORRUPT_DELETE/QUARANTINE/KEEP
+native bool:REST_SetRequireCRC32(routeId, bool:required);
+native bool:REST_RemoveRoute(routeId);
 
 // REST API permissions for file routes
-native bool:PawnREST_AllowList(routeId, bool:allow);     // GET {route}/files
-native bool:PawnREST_AllowDownload(routeId, bool:allow); // GET {route}/files/{name}
-native bool:PawnREST_AllowDelete(routeId, bool:allow);   // DELETE {route}/files/{name}
-native bool:PawnREST_AllowInfo(routeId, bool:allow);     // GET {route}/files/{name}/info
+native bool:REST_AllowList(routeId, bool:allow);     // GET {route}/files
+native bool:REST_AllowDownload(routeId, bool:allow); // GET {route}/files/{name}
+native bool:REST_AllowDelete(routeId, bool:allow);   // DELETE {route}/files/{name}
+native bool:REST_AllowInfo(routeId, bool:allow);     // GET {route}/files/{name}/info
 
 // File operations
-native PawnREST_GetFileCount(routeId);
-native PawnREST_GetFileName(routeId, index, output[], outputSize);
-native bool:PawnREST_DeleteFile(routeId, const filename[]);
-native PawnREST_GetFileSize(routeId, const filename[]);
+native REST_GetFileCount(routeId);
+native REST_GetFileName(routeId, index, output[], outputSize);
+native bool:REST_DeleteFile(routeId, const filename[]);
+native REST_GetFileSize(routeId, const filename[]);
 ```
 
 ---
@@ -160,15 +163,15 @@ native PawnREST_GetFileSize(routeId, const filename[]);
 
 ```pawn
 // Register custom endpoint
-native PawnREST_Route(method, const endpoint[], const callback[]);
-native bool:PawnREST_RemoveAPIRoute(routeId);
-native bool:PawnREST_SetRouteAuth(routeId, const key[]);
+native REST_Route(method, const endpoint[], const callback[]);
+native bool:REST_RemoveAPIRoute(routeId);
+native bool:REST_SetRouteAuth(routeId, const key[]);
 
 // Examples:
-PawnREST_Route(HTTP_GET, "/api/server", "OnGetServer");
-PawnREST_Route(HTTP_POST, "/api/ban", "OnPostBan");
-PawnREST_Route(HTTP_GET, "/api/player/{id}", "OnGetPlayer");  // URL params
-PawnREST_Route(HTTP_DELETE, "/api/vehicle/{id}", "OnDeleteVehicle");
+REST_Route(HTTP_GET, "/api/server", "OnGetServer");
+REST_Route(HTTP_POST, "/api/ban", "OnPostBan");
+REST_Route(HTTP_GET, "/api/player/{id}", "OnGetPlayer");  // URL params
+REST_Route(HTTP_DELETE, "/api/vehicle/{id}", "OnDeleteVehicle");
 ```
 
 ---
@@ -177,22 +180,22 @@ PawnREST_Route(HTTP_DELETE, "/api/vehicle/{id}", "OnDeleteVehicle");
 
 ```pawn
 // Basic request info
-native PawnREST_GetRequestIP(requestId, output[], outputSize);
-native PawnREST_GetRequestMethod(requestId);
-native PawnREST_GetRequestPath(requestId, output[], outputSize);
-native PawnREST_GetRequestBody(requestId, output[], outputSize);
-native PawnREST_GetRequestBodyLength(requestId);
+native REST_GetRequestIP(requestId, output[], outputSize);
+native REST_GetRequestMethod(requestId);
+native REST_GetRequestPath(requestId, output[], outputSize);
+native REST_GetRequestBody(requestId, output[], outputSize);
+native REST_GetRequestBodyLength(requestId);
 
 // URL parameters ({id} from /api/player/{id})
-native PawnREST_GetParam(requestId, const name[], output[], outputSize);
-native PawnREST_GetParamInt(requestId, const name[]);
+native REST_GetParam(requestId, const name[], output[], outputSize);
+native REST_GetParamInt(requestId, const name[]);
 
 // Query string (?page=1&limit=10)
-native PawnREST_GetQuery(requestId, const name[], output[], outputSize);
-native PawnREST_GetQueryInt(requestId, const name[], defaultValue = 0);
+native REST_GetQuery(requestId, const name[], output[], outputSize);
+native REST_GetQueryInt(requestId, const name[], defaultValue = 0);
 
 // Headers
-native PawnREST_GetHeader(requestId, const name[], output[], outputSize);
+native REST_GetHeader(requestId, const name[], output[], outputSize);
 ```
 
 ---
@@ -269,7 +272,7 @@ native bool:SetResponseHeader(requestId, const name[], const value[]);
 
 ```pawn
 // Upload file to external server
-native PawnREST_UploadFile(
+native REST_UploadFile(
     const url[],
     const filepath[],
     const filename[] = "",
@@ -281,19 +284,19 @@ native PawnREST_UploadFile(
 );
 
 // Reusable upload clients
-native PawnREST_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
-native bool:PawnREST_RemoveUploadClient(clientId);
-native bool:PawnREST_SetUploadClientHeader(clientId, const name[], const value[]);
-native bool:PawnREST_RemoveUploadClientHeader(clientId, const name[]);
-native PawnREST_UploadFileWithClient(clientId, const path[], const filepath[], const filename[] = "", const authKey[] = "", const customHeaders[] = "", calculateCrc32 = 1, mode = UPLOAD_MODE_MULTIPART);
+native REST_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
+native bool:REST_RemoveUploadClient(clientId);
+native bool:REST_SetUploadClientHeader(clientId, const name[], const value[]);
+native bool:REST_RemoveUploadClientHeader(clientId, const name[]);
+native REST_UploadFileWithClient(clientId, const path[], const filepath[], const filename[] = "", const authKey[] = "", const customHeaders[] = "", calculateCrc32 = 1, mode = UPLOAD_MODE_MULTIPART);
 
-native bool:PawnREST_CancelUpload(uploadId);
-native PawnREST_GetUploadStatus(uploadId);
-native PawnREST_GetUploadProgress(uploadId);
-native PawnREST_GetUploadResponse(uploadId, output[], outputSize);
-native PawnREST_GetUploadErrorCode(uploadId);
-native PawnREST_GetUploadErrorType(uploadId, output[], outputSize);
-native PawnREST_GetUploadHttpStatus(uploadId);
+native bool:REST_CancelUpload(uploadId);
+native REST_GetUploadStatus(uploadId);
+native REST_GetUploadProgress(uploadId);
+native REST_GetUploadResponse(uploadId, output[], outputSize);
+native REST_GetUploadErrorCode(uploadId);
+native REST_GetUploadErrorType(uploadId, output[], outputSize);
+native REST_GetUploadHttpStatus(uploadId);
 ```
 
 ---
@@ -362,9 +365,9 @@ forward OnWebSocketDisconnect(socketId, bool:isJson, status, const reason[], rea
 ## CRC32 Utilities
 
 ```pawn
-native PawnREST_VerifyCRC32(const filepath[], const expectedCrc[]);
-native PawnREST_GetFileCRC32(const filepath[], output[], outputSize);
-native PawnREST_CompareFiles(const path1[], const path2[]);
+native REST_VerifyCRC32(const filepath[], const expectedCrc[]);
+native REST_GetFileCRC32(const filepath[], output[], outputSize);
+native REST_CompareFiles(const path1[], const path2[]);
 ```
 
 ---
@@ -472,20 +475,20 @@ new g_MapRoute = -1;
 
 public OnGameModeInit()
 {
-    PawnREST_Start(8080);
+    REST_Start(8080);
     
     // File upload route
-    g_MapRoute = PawnREST_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
-    PawnREST_AddKey(g_MapRoute, "secret-key");
-    PawnREST_AllowList(g_MapRoute, true);
-    PawnREST_AllowDownload(g_MapRoute, true);
-    PawnREST_AllowInfo(g_MapRoute, true);
+    g_MapRoute = REST_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
+    REST_AddKey(g_MapRoute, "secret-key");
+    REST_AllowList(g_MapRoute, true);
+    REST_AllowDownload(g_MapRoute, true);
+    REST_AllowInfo(g_MapRoute, true);
     
     // Custom API routes
-    PawnREST_Route(HTTP_GET, "/api/server", "API_GetServer");
-    PawnREST_Route(HTTP_GET, "/api/players", "API_GetPlayers");
-    PawnREST_Route(HTTP_POST, "/api/announce", "API_PostAnnounce");
-    PawnREST_Route(HTTP_GET, "/api/player/{id}", "API_GetPlayer");
+    REST_Route(HTTP_GET, "/api/server", "API_GetServer");
+    REST_Route(HTTP_GET, "/api/players", "API_GetPlayers");
+    REST_Route(HTTP_POST, "/api/announce", "API_PostAnnounce");
+    REST_Route(HTTP_GET, "/api/player/{id}", "API_GetPlayer");
     
     return 1;
 }
@@ -503,8 +506,8 @@ public API_GetServer(requestId)
 
 public API_GetPlayers(requestId)
 {
-    new page = PawnREST_GetQueryInt(requestId, "page", 1);
-    new limit = PawnREST_GetQueryInt(requestId, "limit", 10);
+    new page = REST_GetQueryInt(requestId, "page", 1);
+    new limit = REST_GetQueryInt(requestId, "limit", 10);
     
     new payload = JsonObject();
     new players = JsonArray();
@@ -563,7 +566,7 @@ public API_PostAnnounce(requestId)
 
 public API_GetPlayer(requestId)
 {
-    new playerId = PawnREST_GetParamInt(requestId, "id");
+    new playerId = REST_GetParamInt(requestId, "id");
     
     if (!IsPlayerConnected(playerId))
     {

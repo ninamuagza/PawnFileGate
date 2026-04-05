@@ -2,6 +2,9 @@
 
 Quick reference for the main API surface in `PawnREST.inc`.
 
+`REST_*` is the preferred prefix for core server/file-route/upload utility functions.
+`PawnREST_*` remains available for backward compatibility.
+
 ## Constants
 
 - HTTP method: `HTTP_GET`, `HTTP_POST`, `HTTP_PUT`, `HTTP_PATCH`, `HTTP_DELETE`, `HTTP_HEAD`, `HTTP_OPTIONS`
@@ -15,47 +18,47 @@ Quick reference for the main API surface in `PawnREST.inc`.
 ## Server Control
 
 ```pawn
-native bool:PawnREST_Start(port);
-native bool:PawnREST_StartTLS(port, const certPath[], const keyPath[]);
-native bool:PawnREST_Stop();
-native PawnREST_IsRunning();
-native PawnREST_GetPort();
-native PawnREST_IsTLSEnabled();
+native bool:REST_Start(port);
+native bool:REST_StartTLS(port, const certPath[], const keyPath[]);
+native bool:REST_Stop();
+native REST_IsRunning();
+native REST_GetPort();
+native REST_IsTLSEnabled();
 ```
 
 ## Inbound Upload Routes
 
 ```pawn
-native PawnREST_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb);
-native bool:PawnREST_AddKey(routeId, const key[]);
-native bool:PawnREST_RemoveKey(routeId, const key[]);
-native bool:PawnREST_SetConflict(routeId, mode);
-native bool:PawnREST_SetCorruptAction(routeId, action);
-native bool:PawnREST_SetRequireCRC32(routeId, bool:required);
-native bool:PawnREST_RemoveRoute(routeId);
+native REST_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb);
+native bool:REST_AddKey(routeId, const key[]);
+native bool:REST_RemoveKey(routeId, const key[]);
+native bool:REST_SetConflict(routeId, mode);
+native bool:REST_SetCorruptAction(routeId, action);
+native bool:REST_SetRequireCRC32(routeId, bool:required);
+native bool:REST_RemoveRoute(routeId);
 ```
 
 ## REST API Routes
 
 ```pawn
-native PawnREST_Route(method, const endpoint[], const callback[]);
-native bool:PawnREST_RemoveAPIRoute(routeId);
-native bool:PawnREST_SetRouteAuth(routeId, const key[]);
+native REST_Route(method, const endpoint[], const callback[]);
+native bool:REST_RemoveAPIRoute(routeId);
+native bool:REST_SetRouteAuth(routeId, const key[]);
 ```
 
 ## Request Data Access
 
 ```pawn
-native PawnREST_GetRequestIP(requestId, output[], outputSize);
-native PawnREST_GetRequestMethod(requestId);
-native PawnREST_GetRequestPath(requestId, output[], outputSize);
-native PawnREST_GetRequestBody(requestId, output[], outputSize);
-native PawnREST_GetRequestBodyLength(requestId);
-native PawnREST_GetParam(requestId, const name[], output[], outputSize);
-native PawnREST_GetParamInt(requestId, const name[]);
-native PawnREST_GetQuery(requestId, const name[], output[], outputSize);
-native PawnREST_GetQueryInt(requestId, const name[], defaultValue = 0);
-native PawnREST_GetHeader(requestId, const name[], output[], outputSize);
+native REST_GetRequestIP(requestId, output[], outputSize);
+native REST_GetRequestMethod(requestId);
+native REST_GetRequestPath(requestId, output[], outputSize);
+native REST_GetRequestBody(requestId, output[], outputSize);
+native REST_GetRequestBodyLength(requestId);
+native REST_GetParam(requestId, const name[], output[], outputSize);
+native REST_GetParamInt(requestId, const name[]);
+native REST_GetQuery(requestId, const name[], output[], outputSize);
+native REST_GetQueryInt(requestId, const name[], defaultValue = 0);
+native REST_GetHeader(requestId, const name[], output[], outputSize);
 ```
 
 ## JSON + Response (Concise API)
@@ -108,33 +111,33 @@ native bool:SetResponseHeader(requestId, const name[], const value[]);
 ## File Route REST Permissions + File Ops
 
 ```pawn
-native bool:PawnREST_AllowList(routeId, bool:allow);
-native bool:PawnREST_AllowDownload(routeId, bool:allow);
-native bool:PawnREST_AllowDelete(routeId, bool:allow);
-native bool:PawnREST_AllowInfo(routeId, bool:allow);
+native bool:REST_AllowList(routeId, bool:allow);
+native bool:REST_AllowDownload(routeId, bool:allow);
+native bool:REST_AllowDelete(routeId, bool:allow);
+native bool:REST_AllowInfo(routeId, bool:allow);
 
-native PawnREST_GetFileCount(routeId);
-native PawnREST_GetFileName(routeId, index, output[], outputSize);
-native bool:PawnREST_DeleteFile(routeId, const filename[]);
-native PawnREST_GetFileSize(routeId, const filename[]);
+native REST_GetFileCount(routeId);
+native REST_GetFileName(routeId, index, output[], outputSize);
+native bool:REST_DeleteFile(routeId, const filename[]);
+native REST_GetFileSize(routeId, const filename[]);
 ```
 
 ## Outgoing File Upload API
 
 ```pawn
-native PawnREST_UploadFile(const url[], const filepath[], const filename[] = "", const authKey[] = "", const customHeaders[] = "", calculateCrc32 = 1, mode = UPLOAD_MODE_MULTIPART, bool:verifyTls = true);
-native PawnREST_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
-native bool:PawnREST_RemoveUploadClient(clientId);
-native bool:PawnREST_SetUploadClientHeader(clientId, const name[], const value[]);
-native bool:PawnREST_RemoveUploadClientHeader(clientId, const name[]);
-native PawnREST_UploadFileWithClient(clientId, const path[], const filepath[], const filename[] = "", const authKey[] = "", const customHeaders[] = "", calculateCrc32 = 1, mode = UPLOAD_MODE_MULTIPART);
-native bool:PawnREST_CancelUpload(uploadId);
-native PawnREST_GetUploadStatus(uploadId);
-native PawnREST_GetUploadProgress(uploadId);
-native PawnREST_GetUploadResponse(uploadId, output[], outputSize);
-native PawnREST_GetUploadErrorCode(uploadId);
-native PawnREST_GetUploadErrorType(uploadId, output[], outputSize);
-native PawnREST_GetUploadHttpStatus(uploadId);
+native REST_UploadFile(const url[], const filepath[], const filename[] = "", const authKey[] = "", const customHeaders[] = "", calculateCrc32 = 1, mode = UPLOAD_MODE_MULTIPART, bool:verifyTls = true);
+native REST_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
+native bool:REST_RemoveUploadClient(clientId);
+native bool:REST_SetUploadClientHeader(clientId, const name[], const value[]);
+native bool:REST_RemoveUploadClientHeader(clientId, const name[]);
+native REST_UploadFileWithClient(clientId, const path[], const filepath[], const filename[] = "", const authKey[] = "", const customHeaders[] = "", calculateCrc32 = 1, mode = UPLOAD_MODE_MULTIPART);
+native bool:REST_CancelUpload(uploadId);
+native REST_GetUploadStatus(uploadId);
+native REST_GetUploadProgress(uploadId);
+native REST_GetUploadResponse(uploadId, output[], outputSize);
+native REST_GetUploadErrorCode(uploadId);
+native REST_GetUploadErrorType(uploadId, output[], outputSize);
+native REST_GetUploadHttpStatus(uploadId);
 ```
 
 ## Outbound HTTP API (Requests-style)
@@ -178,7 +181,7 @@ stock bool:RequestHeadersAppend(headers[], outputSize, const key[], const value[
 ## CRC32 Utilities
 
 ```pawn
-native PawnREST_VerifyCRC32(const filepath[], const expectedCrc[]);
-native PawnREST_GetFileCRC32(const filepath[], output[], outputSize);
-native PawnREST_CompareFiles(const path1[], const path2[]);
+native REST_VerifyCRC32(const filepath[], const expectedCrc[]);
+native REST_GetFileCRC32(const filepath[], output[], outputSize);
+native REST_CompareFiles(const path1[], const path2[]);
 ```

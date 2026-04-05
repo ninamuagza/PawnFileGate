@@ -30,6 +30,92 @@
 #define HTTP_METHOD_OPTIONS    HTTP_OPTIONS
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Preferred REST_* Function Prefix
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// All REST_* names are aliases of PawnREST_* natives for shorter usage while
+// keeping backward compatibility with existing PawnREST_* scripts.
+
+#define REST_Start                         PawnREST_Start
+#define REST_StartTLS                      PawnREST_StartTLS
+#define REST_Stop                          PawnREST_Stop
+#define REST_IsRunning                     PawnREST_IsRunning
+#define REST_GetPort                       PawnREST_GetPort
+#define REST_IsTLSEnabled                  PawnREST_IsTLSEnabled
+
+#define REST_RegisterRoute                 PawnREST_RegisterRoute
+#define REST_AddKey                        PawnREST_AddKey
+#define REST_RemoveKey                     PawnREST_RemoveKey
+#define REST_SetConflict                   PawnREST_SetConflict
+#define REST_SetCorruptAction              PawnREST_SetCorruptAction
+#define REST_SetRequireCRC32               PawnREST_SetRequireCRC32
+#define REST_RemoveRoute                   PawnREST_RemoveRoute
+
+#define REST_Route                         PawnREST_Route
+#define REST_RemoveAPIRoute                PawnREST_RemoveAPIRoute
+#define REST_SetRouteAuth                  PawnREST_SetRouteAuth
+
+#define REST_GetRequestIP                  PawnREST_GetRequestIP
+#define REST_GetRequestMethod              PawnREST_GetRequestMethod
+#define REST_GetRequestPath                PawnREST_GetRequestPath
+#define REST_GetRequestBody                PawnREST_GetRequestBody
+#define REST_GetRequestBodyLength          PawnREST_GetRequestBodyLength
+#define REST_GetParam                      PawnREST_GetParam
+#define REST_GetParamInt                   PawnREST_GetParamInt
+#define REST_GetQuery                      PawnREST_GetQuery
+#define REST_GetQueryInt                   PawnREST_GetQueryInt
+#define REST_GetHeader                     PawnREST_GetHeader
+
+#define REST_AllowList                     PawnREST_AllowList
+#define REST_AllowDownload                 PawnREST_AllowDownload
+#define REST_AllowDelete                   PawnREST_AllowDelete
+#define REST_AllowInfo                     PawnREST_AllowInfo
+
+#define REST_GetFileCount                  PawnREST_GetFileCount
+#define REST_GetFileName                   PawnREST_GetFileName
+#define REST_DeleteFile                    PawnREST_DeleteFile
+#define REST_GetFileSize                   PawnREST_GetFileSize
+
+#define REST_UploadFile                    PawnREST_UploadFile
+#define REST_CreateUploadClient            PawnREST_CreateUploadClient
+#define REST_RemoveUploadClient            PawnREST_RemoveUploadClient
+#define REST_SetUploadClientHeader         PawnREST_SetUploadClientHeader
+#define REST_RemoveUploadClientHeader      PawnREST_RemoveUploadClientHeader
+#define REST_UploadFileWithClient          PawnREST_UploadFileWithClient
+#define REST_CancelUpload                  PawnREST_CancelUpload
+#define REST_GetUploadStatus               PawnREST_GetUploadStatus
+#define REST_GetUploadProgress             PawnREST_GetUploadProgress
+#define REST_GetUploadResponse             PawnREST_GetUploadResponse
+#define REST_GetUploadErrorCode            PawnREST_GetUploadErrorCode
+#define REST_GetUploadErrorType            PawnREST_GetUploadErrorType
+#define REST_GetUploadHttpStatus           PawnREST_GetUploadHttpStatus
+
+#define REST_RequestsClient                PawnREST_RequestsClient
+#define REST_RemoveRequestsClient          PawnREST_RemoveRequestsClient
+#define REST_SetRequestsClientHeader       PawnREST_SetRequestsClientHeader
+#define REST_RemoveRequestsClientHeader    PawnREST_RemoveRequestsClientHeader
+#define REST_Request                       PawnREST_Request
+#define REST_RequestJSON                   PawnREST_RequestJSON
+#define REST_CancelRequest                 PawnREST_CancelRequest
+#define REST_GetRequestStatus              PawnREST_GetRequestStatus
+#define REST_GetRequestHttpStatus          PawnREST_GetRequestHttpStatus
+#define REST_GetRequestErrorCode           PawnREST_GetRequestErrorCode
+#define REST_GetRequestErrorType           PawnREST_GetRequestErrorType
+#define REST_GetRequestResponse            PawnREST_GetRequestResponse
+
+#define REST_WebSocketClient               PawnREST_WebSocketClient
+#define REST_JsonWebSocketClient           PawnREST_JsonWebSocketClient
+#define REST_WebSocketSend                 PawnREST_WebSocketSend
+#define REST_JsonWebSocketSend             PawnREST_JsonWebSocketSend
+#define REST_WebSocketClose                PawnREST_WebSocketClose
+#define REST_RemoveWebSocketClient         PawnREST_RemoveWebSocketClient
+#define REST_IsWebSocketOpen               PawnREST_IsWebSocketOpen
+
+#define REST_VerifyCRC32                   PawnREST_VerifyCRC32
+#define REST_GetFileCRC32                  PawnREST_GetFileCRC32
+#define REST_CompareFiles                  PawnREST_CompareFiles
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Conflict Modes
 // ─────────────────────────────────────────────────────────────────────────────
 
