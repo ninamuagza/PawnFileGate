@@ -3,6 +3,7 @@ project(pawnrest LANGUAGES C CXX VERSION 3.0.0)
 
 set(CMAKE_CXX_STANDARD 17)
 option(PAWNREST_ENABLE_TLS "Enable TLS/HTTPS support via OpenSSL" OFF)
+option(PAWNREST_TLS_STATIC_OPENSSL "Link OpenSSL statically when TLS is enabled" OFF)
 option(PAWNREST_OPTIMIZE_SIZE "Optimize binary size for Release/MinSizeRel builds" ON)
 option(PAWNREST_STRIP_SYMBOLS "Strip symbols in GNU/Clang Release/MinSizeRel builds" ON)
 
@@ -53,6 +54,10 @@ if(PAWNREST_OPTIMIZE_SIZE)
 endif()
 
 if(PAWNREST_ENABLE_TLS)
+	if(PAWNREST_TLS_STATIC_OPENSSL)
+		set(OPENSSL_USE_STATIC_LIBS TRUE)
+	endif()
+
 	find_package(OpenSSL QUIET)
 	if(OpenSSL_FOUND)
 		target_compile_definitions(${PROJECT_NAME} PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT PAWNREST_HAS_SSL=1)

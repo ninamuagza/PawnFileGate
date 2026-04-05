@@ -25,7 +25,9 @@ jobs:
       - name: Prepare build folder (uid 1000 required by container)
         run: |
           mkdir -p docker/build
+          mkdir -p docker/build-static-ssl
           sudo chown 1000:1000 docker/build
+          sudo chown 1000:1000 docker/build-static-ssl
 
       - name: Build Docker image
         run: |
@@ -44,9 +46,30 @@ jobs:
             -e BUILD_SERVER=${BUILD_SERVER} \
             pawnrest/build:ubuntu-18.04
 
+      - name: Run static SSL build in Docker container
+        env:
+          CONFIG: ${{ env.CONFIG }}
+          BUILD_SERVER: ${{ env.BUILD_SERVER }}
+        run: |
+          docker run --rm -t \
+            -w /code \
+            -v "${{ github.workspace }}:/code" \
+            -v "${{ github.workspace }}/docker/build-static-ssl:/code/build-static-ssl" \
+            -e CONFIG=${CONFIG} \
+            -e BUILD_SERVER=${BUILD_SERVER} \
+            -e BUILD_DIR=build-static-ssl \
+            -e PAWNREST_ENABLE_TLS=ON \
+            -e PAWNREST_TLS_STATIC_OPENSSL=ON \
+            pawnrest/build:ubuntu-18.04
+
       - name: Strip Linux binaries
         run: |
-          find docker/build -type f -name "*.so" -print -exec strip --strip-unneeded {} \;
+          find docker/build docker/build-static-ssl -type f -name "*.so" -print -exec strip --strip-unneeded {} \;
+
+      - name: Rename static SSL artifact
+        run: |
+          test -f docker/build-static-ssl/pawnrest.so
+          cp docker/build-static-ssl/pawnrest.so docker/build-static-ssl/pawnrest-static-ssl.so
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
@@ -55,6 +78,15 @@ jobs:
           path: |
             docker/build/**/*.so
             docker/build/*.so
+            PawnREST.inc
+          if-no-files-found: error
+
+      - name: Upload Linux static SSL artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pawnrest-linux-so-32bit-static-ssl
+          path: |
+            docker/build-static-ssl/pawnrest-static-ssl.so
             PawnREST.inc
           if-no-files-found: error
 

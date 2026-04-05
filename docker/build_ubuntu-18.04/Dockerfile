@@ -21,6 +21,8 @@ RUN \
         g++-8-multilib \
         libstdc++6:i386 \
         libc6:i386 \
+        libssl-dev:i386 \
+        zlib1g-dev:i386 \
     && \
     useradd -m user
 

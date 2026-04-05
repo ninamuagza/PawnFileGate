@@ -1,4 +1,6 @@
 #!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Available configs: Debug, [RelWithDebInfo], Release
 [[ -z "$CONFIG" ]] \
@@ -8,17 +10,26 @@
 [[ -z "$BUILD_SERVER" ]] \
 && build_server=1 \
 || build_server="$BUILD_SERVER"
+[[ -z "$BUILD_DIR" ]] \
+&& build_dir=build \
+|| build_dir="$BUILD_DIR"
+[[ -z "$PAWNREST_ENABLE_TLS" ]] \
+&& tls_enabled=OFF \
+|| tls_enabled="$PAWNREST_ENABLE_TLS"
+[[ -z "$PAWNREST_TLS_STATIC_OPENSSL" ]] \
+&& tls_static=OFF \
+|| tls_static="$PAWNREST_TLS_STATIC_OPENSSL"
 
 docker build \
-    -t omp-easing-functions/build:ubuntu-18.04 \
-    build_ubuntu-18.04/ \
+    -t pawnrest/build:ubuntu-18.04 \
+    "${SCRIPT_DIR}/build_ubuntu-18.04/" \
 || exit 1
 
-folders=('build')
+folders=("${build_dir}")
 for folder in "${folders[@]}"; do
-    if [[ ! -d "./${folder}" ]]; then
-        mkdir ${folder} &&
-        chown 1000:1000 ${folder} || exit 1
+    if [[ ! -d "${SCRIPT_DIR}/${folder}" ]]; then
+        mkdir "${SCRIPT_DIR}/${folder}" &&
+        chown 1000:1000 "${SCRIPT_DIR}/${folder}" || exit 1
     fi
 done
 
@@ -26,8 +37,11 @@ docker run \
     --rm \
     -t \
     -w /code \
-    -v $PWD/..:/code \
-    -v $PWD/build:/code/build \
+    -v "${REPO_ROOT}:/code" \
+    -v "${SCRIPT_DIR}/${build_dir}:/code/${build_dir}" \
     -e CONFIG=${config} \
     -e BUILD_SERVER=${build_server} \
-    omp-easing-functions/build:ubuntu-18.04
+    -e BUILD_DIR=${build_dir} \
+    -e PAWNREST_ENABLE_TLS=${tls_enabled} \
+    -e PAWNREST_TLS_STATIC_OPENSSL=${tls_static} \
+    pawnrest/build:ubuntu-18.04

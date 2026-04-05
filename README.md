@@ -41,6 +41,8 @@ API documentation and use-case guides are available in [`wiki/`](./wiki/):
 4. Add `#include <PawnREST>` to your script
 
 To enable TLS/HTTPS in source builds, configure with `-DPAWNREST_ENABLE_TLS=ON` and provide OpenSSL libraries compatible with your target architecture.
+For release builds, CI also publishes a Linux static-OpenSSL variant as `pawnrest-static-ssl.so`.
+For local Docker builds of the static-SSL variant, run `BUILD_DIR=build-static-ssl PAWNREST_ENABLE_TLS=ON PAWNREST_TLS_STATIC_OPENSSL=ON ./docker/build.sh`.
 
 ---
 
