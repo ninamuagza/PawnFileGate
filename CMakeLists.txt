@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.19)
 project(pawnrest LANGUAGES C CXX VERSION 3.0.0)
 
 set(CMAKE_CXX_STANDARD 17)
+include(CTest)
 option(PAWNREST_ENABLE_TLS "Enable TLS/HTTPS support via OpenSSL" OFF)
 option(PAWNREST_TLS_STATIC_OPENSSL "Link OpenSSL statically when TLS is enabled" OFF)
 option(PAWNREST_OPTIMIZE_SIZE "Optimize binary size for Release/MinSizeRel builds" ON)
@@ -71,3 +72,12 @@ else()
 endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
+
+if(BUILD_TESTING)
+	add_executable(pawnrest_utils_tests tests/utils_tests.cpp)
+	target_include_directories(pawnrest_utils_tests PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}
+		${CMAKE_CURRENT_SOURCE_DIR}/deps
+	)
+	add_test(NAME pawnrest_utils_tests COMMAND pawnrest_utils_tests)
+endif()
