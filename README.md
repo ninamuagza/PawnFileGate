@@ -1,15 +1,34 @@
-# FileGate - HTTP File Transfer & REST API Framework
+# PawnREST - HTTP File Transfer & REST API Framework
 
 An open.mp server component that provides HTTP file upload/download functionality and a full REST API framework for SA-MP/open.mp servers.
+
+## Wiki
+
+API documentation and use-case guides are available in [`wiki/`](./wiki/):
+
+- [`Home`](./wiki/Home.md)
+- [`Getting Started`](./wiki/Getting-Started.md)
+- [`API Reference`](./wiki/API-Reference.md)
+- [`JSON Node Guide`](./wiki/JSON-Node-Guide.md)
+- [`Outbound HTTP Guide`](./wiki/Outbound-HTTP-Guide.md)
+- [`WebSocket Guide`](./wiki/WebSocket-Guide.md)
+- [`Callbacks`](./wiki/Callbacks.md)
+- [`Use Cases`](./wiki/Use-Cases.md)
+- [`Migration from pawn-requests`](./wiki/Migration-from-pawn-requests.md)
 
 ## Features
 
 - **File Upload Server** - Receive files via HTTP POST with validation
 - **File Download API** - Serve files via HTTP GET
 - **Outgoing Uploads** - Upload files to external servers
-- **REST API Framework** - Create custom HTTP endpoints (GET, POST, PUT, PATCH, DELETE)
-- **JSON Support** - Parse request bodies and build responses
+- **Upload Clients** - Reuse base URL and default headers for outbound uploads
+- **Outbound HTTP Requests** - RequestsClient-style `Request`/`RequestJSON`
+- **WebSocket Clients** - Text and JSON websocket clients (`ws://` and optional `wss://`)
+- **REST API Framework** - Create custom HTTP endpoints (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)
+- **Node-only JSON API** - Parse/build JSON with node handles (pawn-requests style)
 - **Authorization** - Bearer token authentication per route
+- **TLS/HTTPS Support** - HTTPS server/client support when built with OpenSSL
+- **Structured Error Callbacks** - Typed/coded failure metadata for outgoing uploads
 - **CRC32 Integrity** - File checksum validation
 
 ---
@@ -18,8 +37,10 @@ An open.mp server component that provides HTTP file upload/download functionalit
 
 1. Download the latest release for your platform (`.dll` for Windows, `.so` for Linux)
 2. Place it in your open.mp server `components/` directory
-3. Copy `FileGate.inc` to your Pawn compiler includes directory
-4. Add `#include <FileGate>` to your script
+3. Copy `PawnREST.inc` to your Pawn compiler includes directory
+4. Add `#include <PawnREST>` to your script
+
+To enable TLS/HTTPS in source builds, configure with `-DPAWNREST_ENABLE_TLS=ON` and provide OpenSSL libraries compatible with your target architecture.
 
 ---
 
@@ -27,7 +48,7 @@ An open.mp server component that provides HTTP file upload/download functionalit
 
 ```pawn
 #include <a_samp>
-#include <FileGate>
+#include <PawnREST>
 
 new g_MapRoute = -1;
 new g_ApiPlayers = -1;
@@ -35,19 +56,19 @@ new g_ApiPlayers = -1;
 public OnGameModeInit()
 {
     // Start HTTP server on port 8080
-    FileGate_Start(8080);
+    PawnREST_Start(8080);
     
     // === FILE UPLOAD ROUTE ===
-    g_MapRoute = FileGate_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
-    FileGate_AddKey(g_MapRoute, "upload-secret-key");
+    g_MapRoute = PawnREST_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
+    PawnREST_AddKey(g_MapRoute, "upload-secret-key");
     
     // Enable REST API for files
-    FileGate_AllowList(g_MapRoute, true);
-    FileGate_AllowDownload(g_MapRoute, true);
+    PawnREST_AllowList(g_MapRoute, true);
+    PawnREST_AllowDownload(g_MapRoute, true);
     
     // === CUSTOM REST API ===
-    g_ApiPlayers = FileGate_Route(HTTP_GET, "/api/players", "OnGetPlayers");
-    FileGate_SetRouteAuth(g_ApiPlayers, "api-secret-key");
+    g_ApiPlayers = PawnREST_Route(HTTP_GET, "/api/players", "OnGetPlayers");
+    PawnREST_SetRouteAuth(g_ApiPlayers, "api-secret-key");
     
     return 1;
 }
@@ -55,17 +76,18 @@ public OnGameModeInit()
 // Handle GET /api/players
 public OnGetPlayers(requestId)
 {
-    FileGate_JsonStart(requestId);
-    FileGate_JsonAddInt(requestId, "online", GetPlayerCount());
-    FileGate_JsonAddInt(requestId, "max", GetMaxPlayers());
-    FileGate_JsonSend(requestId, 200);
+    new payload = JsonObject();
+    JsonSetInt(payload, "online", GetPlayerCount());
+    JsonSetInt(payload, "max", GetMaxPlayers());
+    RespondNode(requestId, 200, payload);
+    JsonCleanup(payload);
     return 1;
 }
 
 public OnFileUploaded(uploadId, routeId, const endpoint[], const filename[], 
                       const filepath[], const crc32[], crcMatched)
 {
-    printf("[FileGate] File uploaded: %s", filename);
+    printf("[PawnREST] File uploaded: %s", filename);
     return 1;
 }
 ```
@@ -81,6 +103,8 @@ public OnFileUploaded(uploadId, routeId, const endpoint[], const filename[],
 | `HTTP_PUT` | PUT |
 | `HTTP_PATCH` | PATCH |
 | `HTTP_DELETE` | DELETE |
+| `HTTP_HEAD` | HEAD |
+| `HTTP_OPTIONS` | OPTIONS |
 
 ---
 
@@ -88,10 +112,12 @@ public OnFileUploaded(uploadId, routeId, const endpoint[], const filename[],
 
 ```pawn
 // Start/stop HTTP server
-native bool:FileGate_Start(port);
-native bool:FileGate_Stop();
-native FileGate_IsRunning();
-native FileGate_GetPort();
+native bool:PawnREST_Start(port);
+native bool:PawnREST_StartTLS(port, const certPath[], const keyPath[]);
+native bool:PawnREST_Stop();
+native PawnREST_IsRunning();
+native PawnREST_GetPort();
+native PawnREST_IsTLSEnabled();
 ```
 
 ---
@@ -100,29 +126,29 @@ native FileGate_GetPort();
 
 ```pawn
 // Register upload endpoint
-native FileGate_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb);
+native PawnREST_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb);
 
 // Authorization
-native bool:FileGate_AddKey(routeId, const key[]);
-native bool:FileGate_RemoveKey(routeId, const key[]);
+native bool:PawnREST_AddKey(routeId, const key[]);
+native bool:PawnREST_RemoveKey(routeId, const key[]);
 
 // Settings
-native bool:FileGate_SetConflict(routeId, mode);      // CONFLICT_RENAME/OVERWRITE/REJECT
-native bool:FileGate_SetCorruptAction(routeId, act);  // CORRUPT_DELETE/QUARANTINE/KEEP
-native bool:FileGate_SetRequireCRC32(routeId, bool:required);
-native bool:FileGate_RemoveRoute(routeId);
+native bool:PawnREST_SetConflict(routeId, mode);      // CONFLICT_RENAME/OVERWRITE/REJECT
+native bool:PawnREST_SetCorruptAction(routeId, act);  // CORRUPT_DELETE/QUARANTINE/KEEP
+native bool:PawnREST_SetRequireCRC32(routeId, bool:required);
+native bool:PawnREST_RemoveRoute(routeId);
 
 // REST API permissions for file routes
-native bool:FileGate_AllowList(routeId, bool:allow);     // GET {route}/files
-native bool:FileGate_AllowDownload(routeId, bool:allow); // GET {route}/files/{name}
-native bool:FileGate_AllowDelete(routeId, bool:allow);   // DELETE {route}/files/{name}
-native bool:FileGate_AllowInfo(routeId, bool:allow);     // GET {route}/files/{name}/info
+native bool:PawnREST_AllowList(routeId, bool:allow);     // GET {route}/files
+native bool:PawnREST_AllowDownload(routeId, bool:allow); // GET {route}/files/{name}
+native bool:PawnREST_AllowDelete(routeId, bool:allow);   // DELETE {route}/files/{name}
+native bool:PawnREST_AllowInfo(routeId, bool:allow);     // GET {route}/files/{name}/info
 
 // File operations
-native FileGate_GetFileCount(routeId);
-native FileGate_GetFileName(routeId, index, output[], outputSize);
-native bool:FileGate_DeleteFile(routeId, const filename[]);
-native FileGate_GetFileSize(routeId, const filename[]);
+native PawnREST_GetFileCount(routeId);
+native PawnREST_GetFileName(routeId, index, output[], outputSize);
+native bool:PawnREST_DeleteFile(routeId, const filename[]);
+native PawnREST_GetFileSize(routeId, const filename[]);
 ```
 
 ---
@@ -131,15 +157,15 @@ native FileGate_GetFileSize(routeId, const filename[]);
 
 ```pawn
 // Register custom endpoint
-native FileGate_Route(method, const endpoint[], const callback[]);
-native bool:FileGate_RemoveAPIRoute(routeId);
-native bool:FileGate_SetRouteAuth(routeId, const key[]);
+native PawnREST_Route(method, const endpoint[], const callback[]);
+native bool:PawnREST_RemoveAPIRoute(routeId);
+native bool:PawnREST_SetRouteAuth(routeId, const key[]);
 
 // Examples:
-FileGate_Route(HTTP_GET, "/api/server", "OnGetServer");
-FileGate_Route(HTTP_POST, "/api/ban", "OnPostBan");
-FileGate_Route(HTTP_GET, "/api/player/{id}", "OnGetPlayer");  // URL params
-FileGate_Route(HTTP_DELETE, "/api/vehicle/{id}", "OnDeleteVehicle");
+PawnREST_Route(HTTP_GET, "/api/server", "OnGetServer");
+PawnREST_Route(HTTP_POST, "/api/ban", "OnPostBan");
+PawnREST_Route(HTTP_GET, "/api/player/{id}", "OnGetPlayer");  // URL params
+PawnREST_Route(HTTP_DELETE, "/api/vehicle/{id}", "OnDeleteVehicle");
 ```
 
 ---
@@ -148,65 +174,90 @@ FileGate_Route(HTTP_DELETE, "/api/vehicle/{id}", "OnDeleteVehicle");
 
 ```pawn
 // Basic request info
-native FileGate_GetRequestIP(requestId, output[], outputSize);
-native FileGate_GetRequestMethod(requestId);
-native FileGate_GetRequestPath(requestId, output[], outputSize);
-native FileGate_GetRequestBody(requestId, output[], outputSize);
-native FileGate_GetRequestBodyLength(requestId);
+native PawnREST_GetRequestIP(requestId, output[], outputSize);
+native PawnREST_GetRequestMethod(requestId);
+native PawnREST_GetRequestPath(requestId, output[], outputSize);
+native PawnREST_GetRequestBody(requestId, output[], outputSize);
+native PawnREST_GetRequestBodyLength(requestId);
 
 // URL parameters ({id} from /api/player/{id})
-native FileGate_GetParam(requestId, const name[], output[], outputSize);
-native FileGate_GetParamInt(requestId, const name[]);
+native PawnREST_GetParam(requestId, const name[], output[], outputSize);
+native PawnREST_GetParamInt(requestId, const name[]);
 
 // Query string (?page=1&limit=10)
-native FileGate_GetQuery(requestId, const name[], output[], outputSize);
-native FileGate_GetQueryInt(requestId, const name[], defaultValue = 0);
+native PawnREST_GetQuery(requestId, const name[], output[], outputSize);
+native PawnREST_GetQueryInt(requestId, const name[], defaultValue = 0);
 
 // Headers
-native FileGate_GetHeader(requestId, const name[], output[], outputSize);
+native PawnREST_GetHeader(requestId, const name[], output[], outputSize);
 ```
 
 ---
 
-## JSON Parsing (Request Body)
+## JSON API (Node-only)
 
 ```pawn
-// Basic types
-native FileGate_JsonGetString(requestId, const key[], output[], outputSize);
-native FileGate_JsonGetInt(requestId, const key[], defaultValue = 0);
-native Float:FileGate_JsonGetFloat(requestId, const key[], Float:defaultValue = 0.0);
-native bool:FileGate_JsonGetBool(requestId, const key[], bool:defaultValue = false);
-native bool:FileGate_JsonHasKey(requestId, const key[]);
-native FileGate_JsonArrayLength(requestId, const key[]);
+// Parse JSON
+native RequestJson(requestId);
+native JsonParse(const json[]);
+native JsonNodeType(nodeId);                          // JSON_NODE_*
+native JsonStringify(nodeId, output[], outputSize);
+native bool:JsonCleanup(nodeId);
 
-// Nested values (dot notation: "user.profile.name" or "items[0].id")
-native FileGate_JsonGetNested(requestId, const path[], output[], outputSize);
-native FileGate_JsonGetNestedInt(requestId, const path[], defaultValue = 0);
+// Constructors
+native JsonObject(...);  // key, node pairs
+native JsonArray(...);   // node list
+native JsonString(const value[]);
+native JsonInt(value);
+native JsonFloat(Float:value);
+native JsonBool(bool:value);
+native JsonNull();
+native JsonAppend(leftNodeId, rightNodeId);
+
+// Object operations
+native bool:JsonSetObject(objectNodeId, const key[], valueNodeId);
+native bool:JsonSetString(objectNodeId, const key[], const value[]);
+native bool:JsonSetInt(objectNodeId, const key[], value);
+native bool:JsonSetFloat(objectNodeId, const key[], Float:value);
+native bool:JsonSetBool(objectNodeId, const key[], bool:value);
+native bool:JsonSetNull(objectNodeId, const key[]);
+native bool:JsonHas(objectNodeId, const key[]);
+native JsonGetObject(objectNodeId, const key[]);
+native JsonGetString(objectNodeId, const key[], output[], outputSize);
+native JsonGetInt(objectNodeId, const key[], defaultValue = 0);
+native Float:JsonGetFloat(objectNodeId, const key[], Float:defaultValue = 0.0);
+native bool:JsonGetBool(objectNodeId, const key[], bool:defaultValue = false);
+
+// Array operations
+native JsonArrayLength(arrayNodeId);
+native JsonArrayObject(arrayNodeId, index);
+native bool:JsonArrayAppend(arrayNodeId, valueNodeId);
+native bool:JsonArrayAppendString(arrayNodeId, const value[]);
+native bool:JsonArrayAppendInt(arrayNodeId, value);
+native bool:JsonArrayAppendFloat(arrayNodeId, Float:value);
+native bool:JsonArrayAppendBool(arrayNodeId, bool:value);
+native bool:JsonArrayAppendNull(arrayNodeId);
 ```
 
----
+Builder style (pawn-requests style):
+```pawn
+new payload = JsonObject(
+    "name", JsonString("PawnREST"),
+    "players", JsonArray(
+        JsonObject("id", JsonInt(0), "name", JsonString("Alice")),
+        JsonObject("id", JsonInt(1), "name", JsonString("Bob"))
+    )
+);
+```
 
 ## Response Methods
 
 ```pawn
-// Direct response
-native bool:FileGate_Respond(requestId, status, const body[], const contentType[] = "application/json");
-native bool:FileGate_RespondJSON(requestId, status, const json[]);
-native bool:FileGate_RespondError(requestId, status, const message[]);
-native bool:FileGate_SetResponseHeader(requestId, const name[], const value[]);
-
-// JSON builder
-native bool:FileGate_JsonStart(requestId);
-native bool:FileGate_JsonAddString(requestId, const key[], const value[]);
-native bool:FileGate_JsonAddInt(requestId, const key[], value);
-native bool:FileGate_JsonAddFloat(requestId, const key[], Float:value);
-native bool:FileGate_JsonAddBool(requestId, const key[], bool:value);
-native bool:FileGate_JsonAddNull(requestId, const key[]);
-native bool:FileGate_JsonStartObject(requestId, const key[]);
-native bool:FileGate_JsonEndObject(requestId);
-native bool:FileGate_JsonStartArray(requestId, const key[]);
-native bool:FileGate_JsonEndArray(requestId);
-native bool:FileGate_JsonSend(requestId, status = 200);
+native bool:Respond(requestId, status, const body[], const contentType[] = "application/json");
+native bool:RespondJSON(requestId, status, const json[]);
+native bool:RespondNode(requestId, status, nodeId);
+native bool:RespondError(requestId, status, const message[]);
+native bool:SetResponseHeader(requestId, const name[], const value[]);
 ```
 
 ---
@@ -215,20 +266,92 @@ native bool:FileGate_JsonSend(requestId, status = 200);
 
 ```pawn
 // Upload file to external server
-native FileGate_UploadFile(
+native PawnREST_UploadFile(
     const url[],
     const filepath[],
     const filename[] = "",
     const authKey[] = "",
     const customHeaders[] = "",
     calculateCrc32 = 1,
-    mode = UPLOAD_MODE_MULTIPART
+    mode = UPLOAD_MODE_MULTIPART,
+    bool:verifyTls = true
 );
 
-native bool:FileGate_CancelUpload(uploadId);
-native FileGate_GetUploadStatus(uploadId);
-native FileGate_GetUploadProgress(uploadId);
-native FileGate_GetUploadResponse(uploadId, output[], outputSize);
+// Reusable upload clients
+native PawnREST_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
+native bool:PawnREST_RemoveUploadClient(clientId);
+native bool:PawnREST_SetUploadClientHeader(clientId, const name[], const value[]);
+native bool:PawnREST_RemoveUploadClientHeader(clientId, const name[]);
+native PawnREST_UploadFileWithClient(clientId, const path[], const filepath[], const filename[] = "", const authKey[] = "", const customHeaders[] = "", calculateCrc32 = 1, mode = UPLOAD_MODE_MULTIPART);
+
+native bool:PawnREST_CancelUpload(uploadId);
+native PawnREST_GetUploadStatus(uploadId);
+native PawnREST_GetUploadProgress(uploadId);
+native PawnREST_GetUploadResponse(uploadId, output[], outputSize);
+native PawnREST_GetUploadErrorCode(uploadId);
+native PawnREST_GetUploadErrorType(uploadId, output[], outputSize);
+native PawnREST_GetUploadHttpStatus(uploadId);
+```
+
+---
+
+## Outbound Requests (pawn-requests style)
+
+```pawn
+// Reusable HTTP client
+native RequestsClient(const endpoint[], const defaultHeaders[] = "", bool:verifyTls = true);
+native bool:RemoveRequestsClient(clientId);
+native bool:SetRequestsClientHeader(clientId, const name[], const value[]);
+native bool:RemoveRequestsClientHeader(clientId, const name[]);
+
+// Async requests
+native Request(clientId, const path[], method, const callback[], const body[] = "", const headers[] = "");
+native RequestJSON(clientId, const path[], method, const callback[], jsonNodeId = -1, const headers[] = "");
+
+// Optional state polling
+native RequestStatus(requestId);      // REQUEST_*
+native RequestHTTPStatus(requestId);
+native RequestErrorCode(requestId);   // PAWNREST_ERR_*
+native RequestErrorType(requestId, output[], outputSize);
+native RequestResponse(requestId, output[], outputSize);
+```
+
+**Callback signatures**
+```pawn
+// Request(...)
+public OnTextResponse(requestId, httpStatus, const data[], dataLen)
+
+// RequestJSON(...)
+public OnJsonResponse(requestId, httpStatus, nodeId)
+
+// transport/internal failures
+forward OnRequestFailure(requestId, errorCode, const errorMessage[], len);
+forward OnRequestFailureDetailed(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
+```
+
+---
+
+## WebSocket Client
+
+```pawn
+native WebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true);
+native JsonWebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true);
+native bool:WebSocketSend(socketId, const data[]);
+native bool:JsonWebSocketSend(socketId, nodeId);
+native bool:WebSocketClose(socketId, status = 1000, const reason[] = "");
+native bool:RemoveWebSocketClient(socketId);
+native bool:IsWebSocketOpen(socketId);
+```
+
+**Callback signatures**
+```pawn
+// WebSocketClient
+public OnSocketText(socketId, const data[], dataLen)
+
+// JsonWebSocketClient
+public OnSocketJson(socketId, nodeId)
+
+forward OnWebSocketDisconnect(socketId, bool:isJson, status, const reason[], reasonLen, errorCode);
 ```
 
 ---
@@ -236,9 +359,9 @@ native FileGate_GetUploadResponse(uploadId, output[], outputSize);
 ## CRC32 Utilities
 
 ```pawn
-native FileGate_VerifyCRC32(const filepath[], const expectedCrc[]);
-native FileGate_GetFileCRC32(const filepath[], output[], outputSize);
-native FileGate_CompareFiles(const path1[], const path2[]);
+native PawnREST_VerifyCRC32(const filepath[], const expectedCrc[]);
+native PawnREST_GetFileCRC32(const filepath[], output[], outputSize);
+native PawnREST_CompareFiles(const path1[], const path2[]);
 ```
 
 ---
@@ -259,6 +382,14 @@ forward OnFileUploadStarted(uploadId);
 forward OnFileUploadProgress(uploadId, percent);
 forward OnFileUploadCompleted(uploadId, httpStatus, const responseBody[], const crc32[]);
 forward OnFileUploadFailed(uploadId, const errorMessage[]);
+forward OnFileUploadFailure(uploadId, errorCode, const errorType[], const errorMessage[], httpStatus);
+```
+
+### Outbound Request / WebSocket
+```pawn
+forward OnRequestFailure(requestId, errorCode, const errorMessage[], len);
+forward OnRequestFailureDetailed(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
+forward OnWebSocketDisconnect(socketId, bool:isJson, status, const reason[], reasonLen, errorCode);
 ```
 
 ---
@@ -332,48 +463,49 @@ curl -H "Authorization: Bearer upload-secret-key" \
 
 ```pawn
 #include <a_samp>
-#include <FileGate>
+#include <PawnREST>
 
 new g_MapRoute = -1;
 
 public OnGameModeInit()
 {
-    FileGate_Start(8080);
+    PawnREST_Start(8080);
     
     // File upload route
-    g_MapRoute = FileGate_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
-    FileGate_AddKey(g_MapRoute, "secret-key");
-    FileGate_AllowList(g_MapRoute, true);
-    FileGate_AllowDownload(g_MapRoute, true);
-    FileGate_AllowInfo(g_MapRoute, true);
+    g_MapRoute = PawnREST_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
+    PawnREST_AddKey(g_MapRoute, "secret-key");
+    PawnREST_AllowList(g_MapRoute, true);
+    PawnREST_AllowDownload(g_MapRoute, true);
+    PawnREST_AllowInfo(g_MapRoute, true);
     
     // Custom API routes
-    FileGate_Route(HTTP_GET, "/api/server", "API_GetServer");
-    FileGate_Route(HTTP_GET, "/api/players", "API_GetPlayers");
-    FileGate_Route(HTTP_POST, "/api/announce", "API_PostAnnounce");
-    FileGate_Route(HTTP_GET, "/api/player/{id}", "API_GetPlayer");
+    PawnREST_Route(HTTP_GET, "/api/server", "API_GetServer");
+    PawnREST_Route(HTTP_GET, "/api/players", "API_GetPlayers");
+    PawnREST_Route(HTTP_POST, "/api/announce", "API_PostAnnounce");
+    PawnREST_Route(HTTP_GET, "/api/player/{id}", "API_GetPlayer");
     
     return 1;
 }
 
 public API_GetServer(requestId)
 {
-    FileGate_JsonStart(requestId);
-    FileGate_JsonAddString(requestId, "name", "My Server");
-    FileGate_JsonAddInt(requestId, "players", GetOnlineCount());
-    FileGate_JsonAddInt(requestId, "maxPlayers", GetMaxPlayers());
-    FileGate_JsonSend(requestId, 200);
+    new payload = JsonObject();
+    JsonSetString(payload, "name", "My Server");
+    JsonSetInt(payload, "players", GetOnlineCount());
+    JsonSetInt(payload, "maxPlayers", GetMaxPlayers());
+    RespondNode(requestId, 200, payload);
+    JsonCleanup(payload);
     return 1;
 }
 
 public API_GetPlayers(requestId)
 {
-    new page = FileGate_GetQueryInt(requestId, "page", 1);
-    new limit = FileGate_GetQueryInt(requestId, "limit", 10);
+    new page = PawnREST_GetQueryInt(requestId, "page", 1);
+    new limit = PawnREST_GetQueryInt(requestId, "limit", 10);
     
-    FileGate_JsonStart(requestId);
-    FileGate_JsonAddInt(requestId, "page", page);
-    FileGate_JsonStartArray(requestId, "players");
+    new payload = JsonObject();
+    new players = JsonArray();
+    JsonSetInt(payload, "page", page);
     
     for (new i = 0; i < MAX_PLAYERS; i++)
     {
@@ -382,64 +514,77 @@ public API_GetPlayers(requestId)
         new name[MAX_PLAYER_NAME];
         GetPlayerName(i, name, sizeof(name));
         
-        FileGate_JsonStartObject(requestId, "");
-        FileGate_JsonAddInt(requestId, "id", i);
-        FileGate_JsonAddString(requestId, "name", name);
-        FileGate_JsonAddInt(requestId, "score", GetPlayerScore(i));
-        FileGate_JsonEndObject(requestId);
+        new entry = JsonObject();
+        JsonSetInt(entry, "id", i);
+        JsonSetString(entry, "name", name);
+        JsonSetInt(entry, "score", GetPlayerScore(i));
+        JsonArrayAppend(players, entry);
+        JsonCleanup(entry);
     }
     
-    FileGate_JsonEndArray(requestId);
-    FileGate_JsonSend(requestId, 200);
+    JsonSetObject(payload, "players", players);
+    JsonCleanup(players);
+    RespondNode(requestId, 200, payload);
+    JsonCleanup(payload);
     return 1;
 }
 
 public API_PostAnnounce(requestId)
 {
+    new body = RequestJson(requestId);
+    if (body == -1)
+    {
+        RespondError(requestId, 400, "Invalid JSON body");
+        return 1;
+    }
+
     new message[256];
-    FileGate_JsonGetString(requestId, "message", message, sizeof(message));
+    JsonGetString(body, "message", message, sizeof(message));
+    JsonCleanup(body);
     
     if (strlen(message) == 0)
     {
-        FileGate_RespondError(requestId, 400, "Message required");
+        RespondError(requestId, 400, "Message required");
         return 1;
     }
     
     SendClientMessageToAll(-1, message);
     
-    FileGate_JsonStart(requestId);
-    FileGate_JsonAddBool(requestId, "success", true);
-    FileGate_JsonAddString(requestId, "message", "Announcement sent");
-    FileGate_JsonSend(requestId, 200);
+    new payload = JsonObject();
+    JsonSetBool(payload, "success", true);
+    JsonSetString(payload, "message", "Announcement sent");
+    RespondNode(requestId, 200, payload);
+    JsonCleanup(payload);
     return 1;
 }
 
 public API_GetPlayer(requestId)
 {
-    new playerId = FileGate_GetParamInt(requestId, "id");
+    new playerId = PawnREST_GetParamInt(requestId, "id");
     
     if (!IsPlayerConnected(playerId))
     {
-        FileGate_RespondError(requestId, 404, "Player not found");
+        RespondError(requestId, 404, "Player not found");
         return 1;
     }
     
     new name[MAX_PLAYER_NAME];
     GetPlayerName(playerId, name, sizeof(name));
     
-    FileGate_JsonStart(requestId);
-    FileGate_JsonAddInt(requestId, "id", playerId);
-    FileGate_JsonAddString(requestId, "name", name);
-    FileGate_JsonAddInt(requestId, "score", GetPlayerScore(playerId));
-    FileGate_JsonAddInt(requestId, "ping", GetPlayerPing(playerId));
-    FileGate_JsonSend(requestId, 200);
+    new payload = JsonObject();
+    JsonSetInt(payload, "id", playerId);
+    JsonSetString(payload, "name", name);
+    JsonSetInt(payload, "score", GetPlayerScore(playerId));
+    JsonSetInt(payload, "ping", GetPlayerPing(playerId));
+    RespondNode(requestId, 200, payload);
+    JsonCleanup(payload);
     return 1;
 }
 
 public OnFileUploaded(uploadId, routeId, const endpoint[], const filename[], 
                       const filepath[], const crc32[], crcMatched)
 {
-    printf("[FileGate] Uploaded: %s -> %s (CRC: %s)", filename, filepath, crc32);
+    printf("[PawnREST] Uploaded: %s -> %s (CRC: %s)", filename, filepath, crc32);
     return 1;
 }
 

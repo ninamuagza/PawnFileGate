@@ -1,4 +1,4 @@
-name: Build Release Artifacts
+name: Build PawnREST Release Artifacts
 
 on:
   push:
@@ -13,7 +13,7 @@ env:
 jobs:
 
   linux-docker:
-    name: Build Linux .so (32-bit)
+    name: Build Linux pawnrest.so (32-bit)
     runs-on: ubuntu-latest
 
     steps:
@@ -29,7 +29,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t omp-easing-functions/build:ubuntu-18.04 docker/build_ubuntu-18.04/
+          docker build -t pawnrest/build:ubuntu-18.04 docker/build_ubuntu-18.04/
 
       - name: Run build in Docker container
         env:
@@ -42,18 +42,20 @@ jobs:
             -v "${{ github.workspace }}/docker/build:/code/build" \
             -e CONFIG=${CONFIG} \
             -e BUILD_SERVER=${BUILD_SERVER} \
-            omp-easing-functions/build:ubuntu-18.04
+            pawnrest/build:ubuntu-18.04
 
-      - name: Upload Linux .so artifacts
+      - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-so
+          name: pawnrest-linux-so-32bit
           path: |
             docker/build/**/*.so
             docker/build/*.so
+            PawnREST.inc
+          if-no-files-found: error
 
   windows-simple:
-    name: Build Windows .dll (32-bit)
+    name: Build Windows pawnrest.dll (32-bit)
     runs-on: windows-latest
     
     steps:
@@ -77,8 +79,8 @@ jobs:
           # Create artifacts folder
           New-Item -ItemType Directory -Path "artifacts" -Force | Out-Null
           
-          # Copy all DLLs to artifacts folder
-          Get-ChildItem -Path "build" -Filter "*.dll" -Recurse | ForEach-Object {
+          # Copy PawnREST DLLs to artifacts folder
+          Get-ChildItem -Path "build" -Filter "pawnrest*.dll" -Recurse | ForEach-Object {
             Copy-Item $_.FullName -Destination "artifacts\" -Force
             Write-Host "Copied: $($_.Name)"
           }
@@ -91,6 +93,8 @@ jobs:
       - name: Upload Windows DLL artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-dll-32bit
-          path: artifacts/*.dll
+          name: pawnrest-windows-dll-32bit
+          path: |
+            artifacts/*.dll
+            PawnREST.inc
           if-no-files-found: error
