@@ -63,14 +63,14 @@ jobs:
             -e PAWNREST_TLS_STATIC_OPENSSL=ON \
             omp-easing-functions/build:ubuntu-22.04-static-ssl
 
+      - name: Normalize artifact permissions
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" docker/build docker/build-static-ssl
+          chmod -R u+rwX docker/build docker/build-static-ssl
+
       - name: Strip Linux binaries
         run: |
           find docker/build docker/build-static-ssl -type f -name "*.so" -print -exec strip --strip-unneeded {} \;
-
-      - name: Rename static SSL artifact
-        run: |
-          test -f docker/build-static-ssl/pawnrest.so
-          cp docker/build-static-ssl/pawnrest.so docker/build-static-ssl/pawnrest-static-ssl.so
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
@@ -87,7 +87,7 @@ jobs:
         with:
           name: pawnrest-linux-so-32bit-static-ssl
           path: |
-            docker/build-static-ssl/pawnrest-static-ssl.so
+            docker/build-static-ssl/pawnrest.so
             PawnREST.inc
           if-no-files-found: error
 
