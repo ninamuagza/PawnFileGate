@@ -17,12 +17,13 @@ RUN \
     && \
     useradd -m user
 
+COPY docker-entrypoint.sh /
+RUN chmod +x /docker-entrypoint.sh
+
 USER user
 
 ENV CC=/usr/bin/clang \
     CXX=/usr/bin/clang++ \
     PATH=~/.local/bin:${PATH}
 
-COPY docker-entrypoint.sh /
-RUN chmod +x /docker-entrypoint.sh
-CMD /docker-entrypoint.sh
+CMD ["/docker-entrypoint.sh"]

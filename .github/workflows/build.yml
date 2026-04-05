@@ -29,13 +29,10 @@ jobs:
           sudo chown 1000:1000 docker/build
           sudo chown 1000:1000 docker/build-static-ssl
 
-      - name: Build Docker image
+      - name: Prepare Docker images (prebuilt + fallback)
         run: |
-          docker build -t pawnrest/build:ubuntu-18.04 docker/build_ubuntu-18.04/
-
-      - name: Build Docker image (static SSL)
-        run: |
-          docker build -t pawnrest/build:ubuntu-22.04-static-ssl docker/build_ubuntu-22.04-static-ssl/
+          docker pull omp-easing-functions/build:ubuntu-18.04 || docker build -t omp-easing-functions/build:ubuntu-18.04 docker/build_ubuntu-18.04/
+          docker pull omp-easing-functions/build:ubuntu-22.04-static-ssl || docker build -t omp-easing-functions/build:ubuntu-22.04-static-ssl docker/build_ubuntu-22.04-static-ssl/
 
       - name: Run build in Docker container
         env:
@@ -48,7 +45,7 @@ jobs:
             -v "${{ github.workspace }}/docker/build:/code/build" \
             -e CONFIG=${CONFIG} \
             -e BUILD_SERVER=${BUILD_SERVER} \
-            pawnrest/build:ubuntu-18.04
+            omp-easing-functions/build:ubuntu-18.04
 
       - name: Run static SSL build in Docker container
         env:
@@ -64,7 +61,7 @@ jobs:
             -e BUILD_DIR=build-static-ssl \
             -e PAWNREST_ENABLE_TLS=ON \
             -e PAWNREST_TLS_STATIC_OPENSSL=ON \
-            pawnrest/build:ubuntu-22.04-static-ssl
+            omp-easing-functions/build:ubuntu-22.04-static-ssl
 
       - name: Strip Linux binaries
         run: |

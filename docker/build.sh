@@ -28,18 +28,18 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 if [[ -z "$docker_image" || -z "$docker_dir" ]]; then
     if [[ "${tls_enabled^^}" == "ON" && "${tls_static^^}" == "ON" ]]; then
-        docker_image="pawnrest/build:ubuntu-22.04-static-ssl"
+        docker_image="omp-easing-functions/build:ubuntu-22.04-static-ssl"
         docker_dir="${SCRIPT_DIR}/build_ubuntu-22.04-static-ssl/"
     else
-        docker_image="pawnrest/build:ubuntu-18.04"
+        docker_image="omp-easing-functions/build:ubuntu-18.04"
         docker_dir="${SCRIPT_DIR}/build_ubuntu-18.04/"
     fi
 fi
 
-docker build \
-    -t "${docker_image}" \
-    "${docker_dir}" \
-|| exit 1
+if ! docker image inspect "${docker_image}" >/dev/null 2>&1; then
+    docker pull "${docker_image}" >/dev/null 2>&1 || \
+    docker build -t "${docker_image}" "${docker_dir}" || exit 1
+fi
 
 folders=("${build_dir}")
 for folder in "${folders[@]}"; do
