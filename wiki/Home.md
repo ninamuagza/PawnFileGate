@@ -11,7 +11,6 @@ Structured documentation for PawnREST APIs and server-client implementation use 
 - [WebSocket Guide](./WebSocket-Guide.md)
 - [Callbacks](./Callbacks.md)
 - [Use Cases](./Use-Cases.md)
-- [Migration from pawn-requests](./Migration-from-pawn-requests.md)
 
 ## Capability Snapshot
 
@@ -29,5 +28,5 @@ Structured documentation for PawnREST APIs and server-client implementation use 
 ## Usage Philosophy
 
 1. **Inbound API**: use `REST_Route` with Pawn callbacks.
-2. **Outbound API**: use `RequestsClient` with `Request` / `RequestJSON`.
+2. **Outbound API**: use `REST_RequestsClient` with `REST_Request` / `REST_RequestJSON`.
 3. **JSON**: use the node API (`JsonObject`, `JsonSet*`, `JsonGet*`, `RespondNode`).

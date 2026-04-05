@@ -2,8 +2,7 @@
 
 Quick reference for the main API surface in `PawnREST.inc`.
 
-`REST_*` is the preferred prefix for core server/file-route/upload utility functions.
-`PawnREST_*` remains available for backward compatibility.
+Use `REST_*` for core server, route, upload, outbound request, and websocket functions.
 
 ## Constants
 
@@ -140,42 +139,42 @@ native REST_GetUploadErrorType(uploadId, output[], outputSize);
 native REST_GetUploadHttpStatus(uploadId);
 ```
 
-## Outbound HTTP API (Requests-style)
+## Outbound HTTP API
 
 ```pawn
-native RequestsClient(const endpoint[], const defaultHeaders[] = "", bool:verifyTls = true);
-native bool:RemoveRequestsClient(clientId);
-native bool:SetRequestsClientHeader(clientId, const name[], const value[]);
-native bool:RemoveRequestsClientHeader(clientId, const name[]);
+native REST_RequestsClient(const endpoint[], const defaultHeaders[] = "", bool:verifyTls = true);
+native bool:REST_RemoveRequestsClient(clientId);
+native bool:REST_SetRequestsClientHeader(clientId, const name[], const value[]);
+native bool:REST_RemoveRequestsClientHeader(clientId, const name[]);
 
-native Request(clientId, const path[], method, const callback[], const body[] = "", const headers[] = "");
-native RequestJSON(clientId, const path[], method, const callback[], jsonNodeId = -1, const headers[] = "");
+native REST_Request(clientId, const path[], method, const callback[], const body[] = "", const headers[] = "");
+native REST_RequestJSON(clientId, const path[], method, const callback[], jsonNodeId = -1, const headers[] = "");
 
-native bool:CancelRequest(requestId);
-native RequestStatus(requestId);
-native RequestHTTPStatus(requestId);
-native RequestErrorCode(requestId);
-native RequestErrorType(requestId, output[], outputSize);
-native RequestResponse(requestId, output[], outputSize);
+native bool:REST_CancelRequest(requestId);
+native REST_GetRequestStatus(requestId);
+native REST_GetRequestHttpStatus(requestId);
+native REST_GetRequestErrorCode(requestId);
+native REST_GetRequestErrorType(requestId, output[], outputSize);
+native REST_GetRequestResponse(requestId, output[], outputSize);
 ```
 
 ## WebSocket Client API
 
 ```pawn
-native WebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true);
-native JsonWebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true);
-native bool:WebSocketSend(socketId, const data[]);
-native bool:JsonWebSocketSend(socketId, nodeId);
-native bool:WebSocketClose(socketId, status = 1000, const reason[] = "");
-native bool:RemoveWebSocketClient(socketId);
-native bool:IsWebSocketOpen(socketId);
+native REST_WebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true);
+native REST_JsonWebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true);
+native bool:REST_WebSocketSend(socketId, const data[]);
+native bool:REST_JsonWebSocketSend(socketId, nodeId);
+native bool:REST_WebSocketClose(socketId, status = 1000, const reason[] = "");
+native bool:REST_RemoveWebSocketClient(socketId);
+native bool:REST_IsWebSocketOpen(socketId);
 ```
 
 ## Helpers
 
 ```pawn
-stock bool:RequestHeaders(output[], outputSize, const key[], const value[]);
-stock bool:RequestHeadersAppend(headers[], outputSize, const key[], const value[]);
+stock bool:REST_RequestHeaders(output[], outputSize, const key[], const value[]);
+stock bool:REST_RequestHeadersAppend(headers[], outputSize, const key[], const value[]);
 ```
 
 ## CRC32 Utilities

@@ -14,7 +14,18 @@ API documentation and use-case guides are available in [`wiki/`](./wiki/):
 - [`WebSocket Guide`](./wiki/WebSocket-Guide.md)
 - [`Callbacks`](./wiki/Callbacks.md)
 - [`Use Cases`](./wiki/Use-Cases.md)
-- [`Migration from pawn-requests`](./wiki/Migration-from-pawn-requests.md)
+
+## Example Pawn Scripts
+
+Ready-to-copy Pawn scripts are available in [`example/`](./example/):
+
+- `01_server_routes.pwn`
+- `02_file_routes_and_ops.pwn`
+- `03_json_nodes.pwn`
+- `04_outbound_uploads.pwn`
+- `05_outbound_requests.pwn`
+- `06_websocket_client.pwn`
+- `07_crc_utils.pwn`
 
 ## Features
 
@@ -22,10 +33,10 @@ API documentation and use-case guides are available in [`wiki/`](./wiki/):
 - **File Download API** - Serve files via HTTP GET
 - **Outgoing Uploads** - Upload files to external servers
 - **Upload Clients** - Reuse base URL and default headers for outbound uploads
-- **Outbound HTTP Requests** - RequestsClient-style `Request`/`RequestJSON`
+- **Outbound HTTP Requests** - `REST_RequestsClient` with `REST_Request` / `REST_RequestJSON`
 - **WebSocket Clients** - Text and JSON websocket clients (`ws://` and optional `wss://`)
 - **REST API Framework** - Create custom HTTP endpoints (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)
-- **Node-only JSON API** - Parse/build JSON with node handles (pawn-requests style)
+- **Node-only JSON API** - Parse/build JSON with node handles
 - **Authorization** - Bearer token authentication per route
 - **TLS/HTTPS Support** - HTTPS server/client support when built with OpenSSL
 - **Structured Error Callbacks** - Typed/coded failure metadata for outgoing uploads
@@ -40,8 +51,7 @@ API documentation and use-case guides are available in [`wiki/`](./wiki/):
 3. Copy `PawnREST.inc` to your Pawn compiler includes directory
 4. Add `#include <PawnREST>` to your script
 
-The preferred function prefix is now `REST_*` (for example `REST_Start`, `REST_Route`, `REST_RegisterRoute`).
-`PawnREST_*` names are still supported for backward compatibility.
+The function prefix is `REST_*` (for example `REST_Start`, `REST_Route`, `REST_RegisterRoute`).
 
 To enable TLS/HTTPS in source builds, configure with `-DPAWNREST_ENABLE_TLS=ON` and provide OpenSSL libraries compatible with your target architecture.
 For release builds, CI also publishes a separate Linux static-OpenSSL artifact.
@@ -245,7 +255,7 @@ native bool:JsonArrayAppendBool(arrayNodeId, bool:value);
 native bool:JsonArrayAppendNull(arrayNodeId);
 ```
 
-Builder style (pawn-requests style):
+Builder style:
 ```pawn
 new payload = JsonObject(
     "name", JsonString("PawnREST"),
@@ -301,33 +311,33 @@ native REST_GetUploadHttpStatus(uploadId);
 
 ---
 
-## Outbound Requests (pawn-requests style)
+## Outbound Requests
 
 ```pawn
 // Reusable HTTP client
-native RequestsClient(const endpoint[], const defaultHeaders[] = "", bool:verifyTls = true);
-native bool:RemoveRequestsClient(clientId);
-native bool:SetRequestsClientHeader(clientId, const name[], const value[]);
-native bool:RemoveRequestsClientHeader(clientId, const name[]);
+native REST_RequestsClient(const endpoint[], const defaultHeaders[] = "", bool:verifyTls = true);
+native bool:REST_RemoveRequestsClient(clientId);
+native bool:REST_SetRequestsClientHeader(clientId, const name[], const value[]);
+native bool:REST_RemoveRequestsClientHeader(clientId, const name[]);
 
 // Async requests
-native Request(clientId, const path[], method, const callback[], const body[] = "", const headers[] = "");
-native RequestJSON(clientId, const path[], method, const callback[], jsonNodeId = -1, const headers[] = "");
+native REST_Request(clientId, const path[], method, const callback[], const body[] = "", const headers[] = "");
+native REST_RequestJSON(clientId, const path[], method, const callback[], jsonNodeId = -1, const headers[] = "");
 
 // Optional state polling
-native RequestStatus(requestId);      // REQUEST_*
-native RequestHTTPStatus(requestId);
-native RequestErrorCode(requestId);   // PAWNREST_ERR_*
-native RequestErrorType(requestId, output[], outputSize);
-native RequestResponse(requestId, output[], outputSize);
+native REST_GetRequestStatus(requestId);      // REQUEST_*
+native REST_GetRequestHttpStatus(requestId);
+native REST_GetRequestErrorCode(requestId);   // PAWNREST_ERR_*
+native REST_GetRequestErrorType(requestId, output[], outputSize);
+native REST_GetRequestResponse(requestId, output[], outputSize);
 ```
 
 **Callback signatures**
 ```pawn
-// Request(...)
+// REST_Request(...)
 public OnTextResponse(requestId, httpStatus, const data[], dataLen)
 
-// RequestJSON(...)
+// REST_RequestJSON(...)
 public OnJsonResponse(requestId, httpStatus, nodeId)
 
 // transport/internal failures
@@ -340,21 +350,21 @@ forward OnRequestFailureDetailed(requestId, errorCode, const errorType[], const 
 ## WebSocket Client
 
 ```pawn
-native WebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true);
-native JsonWebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true);
-native bool:WebSocketSend(socketId, const data[]);
-native bool:JsonWebSocketSend(socketId, nodeId);
-native bool:WebSocketClose(socketId, status = 1000, const reason[] = "");
-native bool:RemoveWebSocketClient(socketId);
-native bool:IsWebSocketOpen(socketId);
+native REST_WebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true);
+native REST_JsonWebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true);
+native bool:REST_WebSocketSend(socketId, const data[]);
+native bool:REST_JsonWebSocketSend(socketId, nodeId);
+native bool:REST_WebSocketClose(socketId, status = 1000, const reason[] = "");
+native bool:REST_RemoveWebSocketClient(socketId);
+native bool:REST_IsWebSocketOpen(socketId);
 ```
 
 **Callback signatures**
 ```pawn
-// WebSocketClient
+// REST_WebSocketClient
 public OnSocketText(socketId, const data[], dataLen)
 
-// JsonWebSocketClient
+// REST_JsonWebSocketClient
 public OnSocketJson(socketId, nodeId)
 
 forward OnWebSocketDisconnect(socketId, bool:isJson, status, const reason[], reasonLen, errorCode);

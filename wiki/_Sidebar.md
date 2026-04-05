@@ -6,4 +6,3 @@
 - [WebSocket Guide](./WebSocket-Guide.md)
 - [Callbacks](./Callbacks.md)
 - [Use Cases](./Use-Cases.md)
-- [Migration from pawn-requests](./Migration-from-pawn-requests.md)

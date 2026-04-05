@@ -1,6 +1,6 @@
-# Outbound HTTP Guide (Requests-style)
+# Outbound HTTP Guide
 
-This guide focuses on outbound APIs with usage patterns similar to `pawn-requests`.
+This guide focuses on outbound HTTP APIs.
 
 ## 1. Create a client
 
@@ -10,10 +10,10 @@ new g_API;
 public OnGameModeInit()
 {
     new headers[256];
-    RequestHeaders(headers, sizeof(headers), "Authorization", "Bearer token-123");
-    RequestHeadersAppend(headers, sizeof(headers), "X-Server", "my-openmp");
+    REST_RequestHeaders(headers, sizeof(headers), "Authorization", "Bearer token-123");
+    REST_RequestHeadersAppend(headers, sizeof(headers), "X-Server", "my-openmp");
 
-    g_API = RequestsClient("https://api.example.com", headers, true);
+    g_API = REST_RequestsClient("https://api.example.com", headers, true);
     return 1;
 }
 ```
@@ -21,7 +21,7 @@ public OnGameModeInit()
 ## 2. Send a text request
 
 ```pawn
-Request(g_API, "/status", HTTP_METHOD_GET, "OnStatus");
+REST_Request(g_API, "/status", HTTP_METHOD_GET, "OnStatus");
 
 public OnStatus(requestId, httpStatus, const data[], dataLen)
 {
@@ -37,7 +37,7 @@ new payload = JsonObject();
 JsonSetString(payload, "event", "player_join");
 JsonSetInt(payload, "playerId", 7);
 
-RequestJSON(g_API, "/events", HTTP_METHOD_POST, "OnEventPosted", payload);
+REST_RequestJSON(g_API, "/events", HTTP_METHOD_POST, "OnEventPosted", payload);
 JsonCleanup(payload);
 
 public OnEventPosted(requestId, httpStatus, nodeId)
@@ -62,19 +62,19 @@ forward OnRequestFailureDetailed(requestId, errorCode, const errorType[], const 
 Use `errorCode` (`PAWNREST_ERR_*`) for quick classification:
 - timeout/network/tls
 - invalid url / unsupported scheme
-- json parse error (for `RequestJSON`)
+- json parse error (for `REST_RequestJSON`)
 
 ## 5. Optional status polling
 
 ```pawn
-new status = RequestStatus(requestId);      // REQUEST_*
-new code = RequestErrorCode(requestId);
-new http = RequestHTTPStatus(requestId);
+new status = REST_GetRequestStatus(requestId);      // REQUEST_*
+new code = REST_GetRequestErrorCode(requestId);
+new http = REST_GetRequestHttpStatus(requestId);
 ```
 
 ## 6. Header format
 
-`Request` / `RequestJSON` accepts a header string with this format:
+`REST_Request` / `REST_RequestJSON` accepts a header string with this format:
 
 ```text
 Key: Value|Key2: Value2|Key3: Value3

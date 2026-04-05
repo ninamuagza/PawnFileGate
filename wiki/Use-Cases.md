@@ -26,8 +26,8 @@
 ## 3. External API integration (Outbound HTTP)
 
 **Flow**
-1. Create `RequestsClient("https://api.example.com")`.
-2. Send `Request` / `RequestJSON`.
+1. Create `REST_RequestsClient("https://api.example.com")`.
+2. Send `REST_Request` / `REST_RequestJSON`.
 3. Handle callback + `OnRequestFailure`.
 
 **Good for**
@@ -62,8 +62,8 @@
 
 **Flow**
 1. Replace inbound API with PawnREST route API.
-2. Replace outbound requests with `RequestsClient` + `RequestJSON`.
-3. Replace websocket clients with `WebSocketClient` / `JsonWebSocketClient`.
+2. Replace outbound requests with `REST_RequestsClient` + `REST_RequestJSON`.
+3. Replace websocket clients with `REST_WebSocketClient` / `REST_JsonWebSocketClient`.
 
 **Benefit**
 - fewer dependencies

@@ -92,8 +92,8 @@ new g_API;
 
 public OnGameModeInit()
 {
-    g_API = RequestsClient("https://api.example.com");
-    Request(g_API, "/ping", HTTP_METHOD_GET, "OnPing");
+    g_API = REST_RequestsClient("https://api.example.com");
+    REST_Request(g_API, "/ping", HTTP_METHOD_GET, "OnPing");
     return 1;
 }
 

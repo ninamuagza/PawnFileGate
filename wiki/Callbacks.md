@@ -20,13 +20,13 @@ forward OnFileUploadFailure(uploadId, errorCode, const errorType[], const errorM
 
 ## Outbound HTTP Request
 
-Per-request callback from `Request`:
+Per-request callback from `REST_Request`:
 
 ```pawn
 public YourTextCallback(requestId, httpStatus, const data[], dataLen)
 ```
 
-Per-request callback from `RequestJSON`:
+Per-request callback from `REST_RequestJSON`:
 
 ```pawn
 public YourJsonCallback(requestId, httpStatus, nodeId)

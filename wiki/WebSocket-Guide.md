@@ -9,7 +9,7 @@ new g_WS;
 
 public OnGameModeInit()
 {
-    g_WS = WebSocketClient("ws://127.0.0.1:3000/chat", "OnChatMessage");
+    g_WS = REST_WebSocketClient("ws://127.0.0.1:3000/chat", "OnChatMessage");
     return 1;
 }
 
@@ -23,7 +23,7 @@ public OnChatMessage(socketId, const data[], dataLen)
 Send text:
 
 ```pawn
-WebSocketSend(g_WS, "hello from server");
+REST_WebSocketSend(g_WS, "hello from server");
 ```
 
 ## JSON WebSocket client
@@ -33,7 +33,7 @@ new g_JWS;
 
 public OnGameModeInit()
 {
-    g_JWS = JsonWebSocketClient("ws://127.0.0.1:3000/events", "OnEventMessage");
+    g_JWS = REST_JsonWebSocketClient("ws://127.0.0.1:3000/events", "OnEventMessage");
     return 1;
 }
 
@@ -52,7 +52,7 @@ Send JSON:
 ```pawn
 new msg = JsonObject();
 JsonSetString(msg, "type", "ping");
-JsonWebSocketSend(g_JWS, msg);
+REST_JsonWebSocketSend(g_JWS, msg);
 JsonCleanup(msg);
 ```
 
@@ -68,8 +68,8 @@ forward OnWebSocketDisconnect(socketId, bool:isJson, status, const reason[], rea
 ## Close and cleanup
 
 ```pawn
-WebSocketClose(g_WS, 1000, "bye");
-RemoveWebSocketClient(g_WS);
+REST_WebSocketClose(g_WS, 1000, "bye");
+REST_RemoveWebSocketClient(g_WS);
 ```
 
 ## TLS notes (wss://)
