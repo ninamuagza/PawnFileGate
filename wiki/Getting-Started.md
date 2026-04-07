@@ -4,7 +4,7 @@ This page walks through a minimal, production-shaped setup: server bootstrap, fi
 
 ## 1. Install
 
-1. Copy `pawnrest.so` (Linux) or `pawnrest.dll` (Windows) to your server `components/` directory.
+1. Copy `PawnREST.so` (Linux) or `PawnREST.dll` (Windows) to your server `components/` directory.
 2. Copy `PawnREST.inc` to your Pawn include directory.
 3. Add the include in your gamemode:
 
@@ -15,7 +15,7 @@ This page walks through a minimal, production-shaped setup: server bootstrap, fi
 Linux note:
 
 - The plugin architecture must match your server runtime (`32-bit` vs `64-bit`).
-- Check with: `file components/pawnrest.so`
+- Check with: `file components/PawnREST.so`
 - If your environment requires 32-bit, build with `-m32`:
 
 ```bash

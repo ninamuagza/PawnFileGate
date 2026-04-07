@@ -6,28 +6,9 @@ An open.mp server component that provides HTTP file upload/download functionalit
 
 API documentation and use-case guides are available in [`wiki/`](./wiki/):
 
-- [`Home`](./wiki/Home.md)
-- [`Getting Started`](./wiki/Getting-Started.md)
-- [`API Reference`](./wiki/API-Reference.md)
-- [`JSON Node Guide`](./wiki/JSON-Node-Guide.md)
-- [`Outbound HTTP Guide`](./wiki/Outbound-HTTP-Guide.md)
-- [`WebSocket Guide`](./wiki/WebSocket-Guide.md)
-- [`Callbacks`](./wiki/Callbacks.md)
-- [`Use Cases`](./wiki/Use-Cases.md)
-- [`Troubleshooting`](./wiki/Troubleshooting.md)
-
 ## Example Pawn Scripts
 
-Ready-to-copy Pawn scripts are available in [`example/`](./example/):
-
-- `01_server_routes.pwn`
-- `02_file_routes_and_ops.pwn`
-- `03_json_nodes.pwn`
-- `04_outbound_uploads.pwn`
-- `05_outbound_requests.pwn`
-- `06_websocket_client.pwn`
-- `07_crc_utils.pwn`
-- `08_request_input_fallbacks.pwn`
+Examples Pawn scripts are available in [`example/`](./example/):
 
 ## Features
 
@@ -55,37 +36,6 @@ Ready-to-copy Pawn scripts are available in [`example/`](./example/):
 4. Add `#include <PawnREST>` to your script
 
 Public API uses two prefixes: `REST_*` for HTTP/core features and `FILE_*` for file/upload features.
-
-### Linux Architecture Matching (Important)
-
-On Linux, the `pawnrest.so` architecture must match your open.mp runtime.  
-If your runtime expects 32-bit plugins but you deploy a 64-bit binary, endpoints may appear missing (`404`) or request values can look inconsistent.
-
-```bash
-file components/pawnrest.so
-```
-
-Typical output:
-
-- `ELF 32-bit ... Intel i386` -> 32-bit plugin
-- `ELF 64-bit ... x86-64` -> 64-bit plugin
-
-Build 32-bit from source:
-
-```bash
-cmake -S . -B build-32 -G Ninja \
-  -DCMAKE_C_FLAGS=-m32 \
-  -DCMAKE_CXX_FLAGS=-m32 \
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo
-cmake --build build-32 --parallel
-```
-
-`docker/build.sh` already builds with `-m32` by default.
-
-To enable TLS/HTTPS in source builds, configure with `-DPAWNREST_ENABLE_TLS=ON` and provide OpenSSL libraries compatible with your target architecture.
-For release builds, CI also publishes a separate Linux static-OpenSSL artifact.
-For local Docker builds of the static-SSL variant, run `BUILD_DIR=build-static-ssl PAWNREST_ENABLE_TLS=ON PAWNREST_TLS_STATIC_OPENSSL=ON ./docker/build.sh`.
-`docker/build.sh` first tries prebuilt `pawnrest/build:*` images and falls back to local Dockerfile builds only when needed.
 
 ---
 

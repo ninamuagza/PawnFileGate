@@ -13,7 +13,7 @@ env:
 jobs:
 
   linux-docker:
-    name: Build Linux pawnrest.so (32-bit)
+    name: Build Linux PawnREST.so (32-bit)
     runs-on: ubuntu-latest
 
     steps:
@@ -87,12 +87,12 @@ jobs:
         with:
           name: pawnrest-linux-so-32bit-static-ssl
           path: |
-            docker/build-static-ssl/pawnrest.so
+            docker/build-static-ssl/PawnREST.so
             PawnREST.inc
           if-no-files-found: error
 
   windows-simple:
-    name: Build Windows pawnrest.dll (32-bit)
+    name: Build Windows PawnREST.dll (32-bit)
     runs-on: windows-latest
     
     steps:

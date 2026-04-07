@@ -8,11 +8,11 @@ Use this page when route behavior looks inconsistent or request values appear mi
 - Valid routes intermittently return `{"error":"endpoint not found"}`.
 
 **Most common cause**
-- Plugin architecture mismatch on Linux (deploying 64-bit `pawnrest.so` into a 32-bit runtime, or vice versa).
+- Plugin architecture mismatch on Linux (deploying 64-bit `PawnREST.so` into a 32-bit runtime, or vice versa).
 
 **Fix**
 ```bash
-file components/pawnrest.so
+file components/PawnREST.so
 ```
 
 Expected architecture must match your runtime:
