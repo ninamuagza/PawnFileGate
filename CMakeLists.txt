@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
-project(PawnREST LANGUAGES C CXX VERSION 1.0.3)
+project(PawnREST LANGUAGES C CXX VERSION 1.3.0)
 
 set(CMAKE_CXX_STANDARD 17)
 option(PAWNREST_ENABLE_TLS "Enable TLS/HTTPS support via OpenSSL" OFF)

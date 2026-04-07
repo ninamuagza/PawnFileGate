@@ -2475,7 +2475,7 @@ public:
 
     SemanticVersion componentVersion() const override
     {
-        return SemanticVersion(1, 0, 3, 0);
+        return SemanticVersion(1, 3, 0, 0);
     }
 
     void onLoad(ICore* c) override
@@ -2487,7 +2487,7 @@ public:
         FileUtils::CreateDirectory(serverRootPath + Config::TEMP_DIR);
 
         core->printLn(" ");
-        core->printLn("  PawnREST v1.0.3 loaded.");
+        core->printLn("  PawnREST v1.3.0 loaded.");
         core->printLn("  Author: Fanorisky (https://github.com/Fanorisky/PawnREST)");
         core->printLn(" ");
 
