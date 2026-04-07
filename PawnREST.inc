@@ -132,7 +132,7 @@
  * @param port The port to listen on
  * @return true on success, false on failure
  */
-native bool:REST_Start(port) = PawnREST_Start;
+native bool:REST_Start(port);
 
 /**
  * Starts HTTPS server with TLS certificates.
@@ -142,35 +142,35 @@ native bool:REST_Start(port) = PawnREST_Start;
  * @param keyPath Path to private key file (.pem/.key)
  * @return true on success, false on failure
  */
-native bool:REST_StartTLS(port, const certPath[], const keyPath[]) = PawnREST_StartTLS;
+native bool:REST_StartTLS(port, const certPath[], const keyPath[]);
 
 /**
  * Stops the HTTP upload server.
  *
  * @return true if stopped successfully
  */
-native bool:REST_Stop() = PawnREST_Stop;
+native bool:REST_Stop();
 
 /**
  * Checks whether the upload server is currently running.
  *
  * @return true if running, false otherwise
  */
-native REST_IsRunning() = PawnREST_IsRunning;
+native REST_IsRunning();
 
 /**
  * Returns the currently active HTTP server port.
  *
  * @return active port, or 0 if server is not running
  */
-native REST_GetPort() = PawnREST_GetPort;
+native REST_GetPort();
 
 /**
  * Returns whether the currently running server uses TLS/HTTPS.
  *
  * @return true if TLS is enabled, false otherwise
  */
-native REST_IsTLSEnabled() = PawnREST_IsTLSEnabled;
+native REST_IsTLSEnabled();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Incoming Upload Routes
@@ -188,7 +188,7 @@ native REST_IsTLSEnabled() = PawnREST_IsTLSEnabled;
  * @param maxSizeMb   Maximum allowed file size in MB
  * @return routeId, or -1 on failure
  */
-native REST_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb) = PawnREST_RegisterRoute;
+native REST_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb);
 
 /**
  * Requires "Authorization: Bearer <key>" for a specific route.
@@ -197,7 +197,7 @@ native REST_RegisterRoute(const endpoint[], const path[], const allowedExts[], m
  * @param key Authorization key
  * @return true on success
  */
-native bool:REST_AddKey(routeId, const key[]) = PawnREST_AddKey;
+native bool:REST_AddKey(routeId, const key[]);
 
 /**
  * Removes a previously allowed authorization key from a route.
@@ -206,7 +206,7 @@ native bool:REST_AddKey(routeId, const key[]) = PawnREST_AddKey;
  * @param key Authorization key
  * @return true on success
  */
-native bool:REST_RemoveKey(routeId, const key[]) = PawnREST_RemoveKey;
+native bool:REST_RemoveKey(routeId, const key[]);
 
 /**
  * Sets how filename conflicts should be handled for a route.
@@ -220,7 +220,7 @@ native bool:REST_RemoveKey(routeId, const key[]) = PawnREST_RemoveKey;
  * @param mode Conflict mode
  * @return true on success
  */
-native bool:REST_SetConflict(routeId, mode) = PawnREST_SetConflict;
+native bool:REST_SetConflict(routeId, mode);
 
 /**
  * Sets what to do if uploaded file CRC validation fails.
@@ -234,7 +234,7 @@ native bool:REST_SetConflict(routeId, mode) = PawnREST_SetConflict;
  * @param action Corrupt file action
  * @return true on success
  */
-native bool:REST_SetCorruptAction(routeId, action) = PawnREST_SetCorruptAction;
+native bool:REST_SetCorruptAction(routeId, action);
 
 /**
  * Requires incoming uploads on this route to include X-File-CRC32 header.
@@ -243,7 +243,7 @@ native bool:REST_SetCorruptAction(routeId, action) = PawnREST_SetCorruptAction;
  * @param required true to require CRC32, false to disable requirement
  * @return true on success
  */
-native bool:REST_SetRequireCRC32(routeId, bool:required) = PawnREST_SetRequireCRC32;
+native bool:REST_SetRequireCRC32(routeId, bool:required);
 
 /**
  * Removes an existing upload route.
@@ -251,7 +251,7 @@ native bool:REST_SetRequireCRC32(routeId, bool:required) = PawnREST_SetRequireCR
  * @param routeId Route ID
  * @return true on success
  */
-native bool:REST_RemoveRoute(routeId) = PawnREST_RemoveRoute;
+native bool:REST_RemoveRoute(routeId);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // REST API Routes
@@ -270,7 +270,7 @@ native bool:REST_RemoveRoute(routeId) = PawnREST_RemoveRoute;
  * @param callback Pawn callback function name
  * @return routeId, or -1 on failure
  */
-native REST_Route(method, const endpoint[], const callback[]) = PawnREST_Route;
+native REST_Route(method, const endpoint[], const callback[]);
 
 /**
  * Removes a custom API route.
@@ -278,7 +278,7 @@ native REST_Route(method, const endpoint[], const callback[]) = PawnREST_Route;
  * @param routeId Route ID
  * @return true on success
  */
-native bool:REST_RemoveAPIRoute(routeId) = PawnREST_RemoveAPIRoute;
+native bool:REST_RemoveAPIRoute(routeId);
 
 /**
  * Sets authorization key for an API route.
@@ -288,7 +288,7 @@ native bool:REST_RemoveAPIRoute(routeId) = PawnREST_RemoveAPIRoute;
  * @param key Authorization key
  * @return true on success
  */
-native bool:REST_SetRouteAuth(routeId, const key[]) = PawnREST_SetRouteAuth;
+native bool:REST_SetRouteAuth(routeId, const key[]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // REST API - Request Data
@@ -302,7 +302,7 @@ native bool:REST_SetRouteAuth(routeId, const key[]) = PawnREST_SetRouteAuth;
  * @param outputSize Buffer size
  * @return 1 on success, 0 if not found
  */
-native REST_GetRequestIP(requestId, output[], outputSize) = PawnREST_GetRequestIP;
+native REST_GetRequestIP(requestId, output[], outputSize);
 
 /**
  * Gets the HTTP method of the request.
@@ -310,7 +310,7 @@ native REST_GetRequestIP(requestId, output[], outputSize) = PawnREST_GetRequestI
  * @param requestId Request ID
  * @return HTTP method constant (HTTP_METHOD_GET, HTTP_METHOD_POST, etc.) or -1 on error
  */
-native REST_GetRequestMethod(requestId) = PawnREST_GetRequestMethod;
+native REST_GetRequestMethod(requestId);
 
 /**
  * Gets the request path.
@@ -320,7 +320,7 @@ native REST_GetRequestMethod(requestId) = PawnREST_GetRequestMethod;
  * @param outputSize Buffer size
  * @return 1 on success, 0 if not found
  */
-native REST_GetRequestPath(requestId, output[], outputSize) = PawnREST_GetRequestPath;
+native REST_GetRequestPath(requestId, output[], outputSize);
 
 /**
  * Gets the raw request body.
@@ -330,7 +330,7 @@ native REST_GetRequestPath(requestId, output[], outputSize) = PawnREST_GetReques
  * @param outputSize Buffer size
  * @return Body length
  */
-native REST_GetRequestBody(requestId, output[], outputSize) = PawnREST_GetRequestBody;
+native REST_GetRequestBody(requestId, output[], outputSize);
 
 /**
  * Gets the length of the request body.
@@ -338,7 +338,7 @@ native REST_GetRequestBody(requestId, output[], outputSize) = PawnREST_GetReques
  * @param requestId Request ID
  * @return Body length in bytes
  */
-native REST_GetRequestBodyLength(requestId) = PawnREST_GetRequestBodyLength;
+native REST_GetRequestBodyLength(requestId);
 
 /**
  * Gets a URL parameter value (e.g., {id} from /api/player/{id}).
@@ -349,7 +349,7 @@ native REST_GetRequestBodyLength(requestId) = PawnREST_GetRequestBodyLength;
  * @param outputSize Buffer size
  * @return 1 on success, 0 if not found
  */
-native REST_GetParam(requestId, const name[], output[], outputSize) = PawnREST_GetParam;
+native REST_GetParam(requestId, const name[], output[], outputSize);
 
 /**
  * Gets a URL parameter as integer.
@@ -358,7 +358,7 @@ native REST_GetParam(requestId, const name[], output[], outputSize) = PawnREST_G
  * @param name Parameter name
  * @return Parameter value or 0 if not found
  */
-native REST_GetParamInt(requestId, const name[]) = PawnREST_GetParamInt;
+native REST_GetParamInt(requestId, const name[]);
 
 /**
  * Gets a query string parameter (e.g., ?page=1&limit=10).
@@ -369,7 +369,7 @@ native REST_GetParamInt(requestId, const name[]) = PawnREST_GetParamInt;
  * @param outputSize Buffer size
  * @return 1 on success, 0 if not found
  */
-native REST_GetQuery(requestId, const name[], output[], outputSize) = PawnREST_GetQuery;
+native REST_GetQuery(requestId, const name[], output[], outputSize);
 
 /**
  * Gets a query string parameter as integer.
@@ -379,7 +379,7 @@ native REST_GetQuery(requestId, const name[], output[], outputSize) = PawnREST_G
  * @param defaultValue Default value if not found
  * @return Parameter value or defaultValue
  */
-native REST_GetQueryInt(requestId, const name[], defaultValue = 0) = PawnREST_GetQueryInt;
+native REST_GetQueryInt(requestId, const name[], defaultValue = 0);
 
 /**
  * Gets a request header value.
@@ -390,7 +390,7 @@ native REST_GetQueryInt(requestId, const name[], defaultValue = 0) = PawnREST_Ge
  * @param outputSize Buffer size
  * @return 1 on success, 0 if not found
  */
-native REST_GetHeader(requestId, const name[], output[], outputSize) = PawnREST_GetHeader;
+native REST_GetHeader(requestId, const name[], output[], outputSize);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // JSON API (node-only, concise naming style)
@@ -399,65 +399,65 @@ native REST_GetHeader(requestId, const name[], output[], outputSize) = PawnREST_
 /**
  * Parse raw JSON or request JSON body into node tree handles.
  */
-native JsonParse(const json[]) = PawnREST_JsonParseNode;
-native RequestJson(requestId) = PawnREST_RequestJsonNode;
+native JsonParse(const json[]) = REST_JsonParseNode;
+native RequestJson(requestId) = REST_RequestJsonNode;
 
 /**
  * Node metadata and lifecycle.
  */
-native JsonNodeType(nodeId) = PawnREST_NodeType;
-native JsonStringify(nodeId, output[], outputSize) = PawnREST_NodeStringify;
-native bool:JsonCleanup(nodeId) = PawnREST_NodeRelease;
+native JsonNodeType(nodeId) = REST_NodeType;
+native JsonStringify(nodeId, output[], outputSize) = REST_NodeStringify;
+native bool:JsonCleanup(nodeId) = REST_NodeRelease;
 
 /**
  * Node constructors.
  */
-native JsonObject(...) = PawnREST_JsonObject;
-native JsonArray(...) = PawnREST_JsonArray;
-native JsonString(const value[]) = PawnREST_NodeString;
-native JsonInt(value) = PawnREST_NodeInt;
-native JsonFloat(Float:value) = PawnREST_NodeFloat;
-native JsonBool(bool:value) = PawnREST_NodeBool;
-native JsonNull() = PawnREST_NodeNull;
-native JsonAppend(leftNodeId, rightNodeId) = PawnREST_JsonAppend;
+native JsonObject(...) = REST_JsonObject;
+native JsonArray(...) = REST_JsonArray;
+native JsonString(const value[]) = REST_NodeString;
+native JsonInt(value) = REST_NodeInt;
+native Float:JsonFloat(Float:value) = REST_NodeFloat;
+native JsonBool(bool:value) = REST_NodeBool;
+native JsonNull() = REST_NodeNull;
+native JsonAppend(leftNodeId, rightNodeId) = REST_JsonAppend;
 
 /**
  * Object operations.
  */
-native bool:JsonSetObject(objectNodeId, const key[], valueNodeId) = PawnREST_NodeSet;
-native bool:JsonSetString(objectNodeId, const key[], const value[]) = PawnREST_NodeSetString;
-native bool:JsonSetInt(objectNodeId, const key[], value) = PawnREST_NodeSetInt;
-native bool:JsonSetFloat(objectNodeId, const key[], Float:value) = PawnREST_NodeSetFloat;
-native bool:JsonSetBool(objectNodeId, const key[], bool:value) = PawnREST_NodeSetBool;
-native bool:JsonSetNull(objectNodeId, const key[]) = PawnREST_NodeSetNull;
-native bool:JsonHas(objectNodeId, const key[]) = PawnREST_NodeHas;
-native JsonGetObject(objectNodeId, const key[]) = PawnREST_NodeGet;
-native JsonGetString(objectNodeId, const key[], output[], outputSize) = PawnREST_NodeGetString;
-native JsonGetInt(objectNodeId, const key[], defaultValue = 0) = PawnREST_NodeGetInt;
-native Float:JsonGetFloat(objectNodeId, const key[], Float:defaultValue = 0.0) = PawnREST_NodeGetFloat;
-native bool:JsonGetBool(objectNodeId, const key[], bool:defaultValue = false) = PawnREST_NodeGetBool;
+native bool:JsonSetObject(objectNodeId, const key[], valueNodeId) = REST_NodeSet;
+native bool:JsonSetString(objectNodeId, const key[], const value[]) = REST_NodeSetString;
+native bool:JsonSetInt(objectNodeId, const key[], value) = REST_NodeSetInt;
+native bool:JsonSetFloat(objectNodeId, const key[], Float:value) = REST_NodeSetFloat;
+native bool:JsonSetBool(objectNodeId, const key[], bool:value) = REST_NodeSetBool;
+native bool:JsonSetNull(objectNodeId, const key[]) = REST_NodeSetNull;
+native bool:JsonHas(objectNodeId, const key[]) = REST_NodeHas;
+native JsonGetObject(objectNodeId, const key[]) = REST_NodeGet;
+native JsonGetString(objectNodeId, const key[], output[], outputSize) = REST_NodeGetString;
+native JsonGetInt(objectNodeId, const key[], defaultValue = 0) = REST_NodeGetInt;
+native Float:JsonGetFloat(objectNodeId, const key[], Float:defaultValue = 0.0) = REST_NodeGetFloat;
+native bool:JsonGetBool(objectNodeId, const key[], bool:defaultValue = false) = REST_NodeGetBool;
 
 /**
  * Array operations.
  */
-native JsonArrayLength(arrayNodeId) = PawnREST_NodeArrayLength;
-native JsonArrayObject(arrayNodeId, index) = PawnREST_NodeArrayGet;
-native bool:JsonArrayAppend(arrayNodeId, valueNodeId) = PawnREST_NodeArrayPush;
-native bool:JsonArrayAppendString(arrayNodeId, const value[]) = PawnREST_NodeArrayPushString;
-native bool:JsonArrayAppendInt(arrayNodeId, value) = PawnREST_NodeArrayPushInt;
-native bool:JsonArrayAppendFloat(arrayNodeId, Float:value) = PawnREST_NodeArrayPushFloat;
-native bool:JsonArrayAppendBool(arrayNodeId, bool:value) = PawnREST_NodeArrayPushBool;
-native bool:JsonArrayAppendNull(arrayNodeId) = PawnREST_NodeArrayPushNull;
+native JsonArrayLength(arrayNodeId) = REST_NodeArrayLength;
+native JsonArrayObject(arrayNodeId, index) = REST_NodeArrayGet;
+native bool:JsonArrayAppend(arrayNodeId, valueNodeId) = REST_NodeArrayPush;
+native bool:JsonArrayAppendString(arrayNodeId, const value[]) = REST_NodeArrayPushString;
+native bool:JsonArrayAppendInt(arrayNodeId, value) = REST_NodeArrayPushInt;
+native bool:JsonArrayAppendFloat(arrayNodeId, Float:value) = REST_NodeArrayPushFloat;
+native bool:JsonArrayAppendBool(arrayNodeId, bool:value) = REST_NodeArrayPushBool;
+native bool:JsonArrayAppendNull(arrayNodeId) = REST_NodeArrayPushNull;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Response Helpers (concise naming style)
 // ─────────────────────────────────────────────────────────────────────────────
 
-native bool:Respond(requestId, status, const body[], const contentType[] = "application/json") = PawnREST_Respond;
-native bool:RespondJSON(requestId, status, const json[]) = PawnREST_RespondJSON;
-native bool:RespondNode(requestId, status, nodeId) = PawnREST_RespondNode;
-native bool:RespondError(requestId, status, const message[]) = PawnREST_RespondError;
-native bool:SetResponseHeader(requestId, const name[], const value[]) = PawnREST_SetResponseHeader;
+native bool:Respond(requestId, status, const body[], const contentType[] = "application/json") = REST_Respond;
+native bool:RespondJSON(requestId, status, const json[]) = REST_RespondJSON;
+native bool:RespondNode(requestId, status, nodeId) = REST_RespondNode;
+native bool:RespondError(requestId, status, const message[]) = REST_RespondError;
+native bool:SetResponseHeader(requestId, const name[], const value[]) = REST_SetResponseHeader;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // File Route Permissions
@@ -471,7 +471,7 @@ native bool:SetResponseHeader(requestId, const name[], const value[]) = PawnREST
  * @param allow true to allow, false to deny
  * @return true on success
  */
-native bool:REST_AllowList(routeId, bool:allow) = PawnREST_AllowList;
+native bool:REST_AllowList(routeId, bool:allow);
 
 /**
  * Allow downloading files via REST API.
@@ -481,7 +481,7 @@ native bool:REST_AllowList(routeId, bool:allow) = PawnREST_AllowList;
  * @param allow true to allow, false to deny
  * @return true on success
  */
-native bool:REST_AllowDownload(routeId, bool:allow) = PawnREST_AllowDownload;
+native bool:REST_AllowDownload(routeId, bool:allow);
 
 /**
  * Allow deleting files via REST API.
@@ -491,7 +491,7 @@ native bool:REST_AllowDownload(routeId, bool:allow) = PawnREST_AllowDownload;
  * @param allow true to allow, false to deny
  * @return true on success
  */
-native bool:REST_AllowDelete(routeId, bool:allow) = PawnREST_AllowDelete;
+native bool:REST_AllowDelete(routeId, bool:allow);
 
 /**
  * Allow getting file info via REST API.
@@ -501,7 +501,7 @@ native bool:REST_AllowDelete(routeId, bool:allow) = PawnREST_AllowDelete;
  * @param allow true to allow, false to deny
  * @return true on success
  */
-native bool:REST_AllowInfo(routeId, bool:allow) = PawnREST_AllowInfo;
+native bool:REST_AllowInfo(routeId, bool:allow);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // File Operations (Pawn-side)
@@ -513,7 +513,7 @@ native bool:REST_AllowInfo(routeId, bool:allow) = PawnREST_AllowInfo;
  * @param routeId Route ID
  * @return Number of files, or -1 on error
  */
-native REST_GetFileCount(routeId) = PawnREST_GetFileCount;
+native REST_GetFileCount(routeId);
 
 /**
  * Gets a filename by index from a route's directory.
@@ -524,7 +524,7 @@ native REST_GetFileCount(routeId) = PawnREST_GetFileCount;
  * @param outputSize Buffer size
  * @return 1 on success, 0 if not found
  */
-native REST_GetFileName(routeId, index, output[], outputSize) = PawnREST_GetFileName;
+native REST_GetFileName(routeId, index, output[], outputSize);
 
 /**
  * Deletes a file from a route's directory.
@@ -533,7 +533,7 @@ native REST_GetFileName(routeId, index, output[], outputSize) = PawnREST_GetFile
  * @param filename Filename to delete
  * @return true on success
  */
-native bool:REST_DeleteFile(routeId, const filename[]) = PawnREST_DeleteFile;
+native bool:REST_DeleteFile(routeId, const filename[]);
 
 /**
  * Gets the size of a file in a route's directory.
@@ -542,7 +542,7 @@ native bool:REST_DeleteFile(routeId, const filename[]) = PawnREST_DeleteFile;
  * @param filename Filename
  * @return File size in bytes, or 0 if not found
  */
-native REST_GetFileSize(routeId, const filename[]) = PawnREST_GetFileSize;
+native REST_GetFileSize(routeId, const filename[]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Outgoing Upload Client
@@ -571,7 +571,7 @@ native REST_UploadFile(
     calculateCrc32 = 1,
     mode = UPLOAD_MODE_MULTIPART,
     bool:verifyTls = true
-) = PawnREST_UploadFile;
+);
 
 /**
  * Creates a reusable upload client (base URL + default headers).
@@ -581,7 +581,7 @@ native REST_UploadFile(
  * @param verifyTls true to verify remote TLS certificate by default
  * @return clientId, or -1 on failure
  */
-native REST_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true) = PawnREST_CreateUploadClient;
+native REST_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
 
 /**
  * Removes an upload client.
@@ -589,7 +589,7 @@ native REST_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", boo
  * @param clientId Upload client ID
  * @return true on success
  */
-native bool:REST_RemoveUploadClient(clientId) = PawnREST_RemoveUploadClient;
+native bool:REST_RemoveUploadClient(clientId);
 
 /**
  * Sets or overwrites a default header on an upload client.
@@ -599,7 +599,7 @@ native bool:REST_RemoveUploadClient(clientId) = PawnREST_RemoveUploadClient;
  * @param value Header value
  * @return true on success
  */
-native bool:REST_SetUploadClientHeader(clientId, const name[], const value[]) = PawnREST_SetUploadClientHeader;
+native bool:REST_SetUploadClientHeader(clientId, const name[], const value[]);
 
 /**
  * Removes a default header from an upload client.
@@ -608,7 +608,7 @@ native bool:REST_SetUploadClientHeader(clientId, const name[], const value[]) = 
  * @param name Header name
  * @return true on success
  */
-native bool:REST_RemoveUploadClientHeader(clientId, const name[]) = PawnREST_RemoveUploadClientHeader;
+native bool:REST_RemoveUploadClientHeader(clientId, const name[]);
 
 /**
  * Uploads a file using a pre-configured upload client.
@@ -632,7 +632,7 @@ native REST_UploadFileWithClient(
     const customHeaders[] = "",
     calculateCrc32 = 1,
     mode = UPLOAD_MODE_MULTIPART
-) = PawnREST_UploadFileWithClient;
+);
 
 /**
  * Cancels a pending or active outgoing upload.
@@ -640,7 +640,7 @@ native REST_UploadFileWithClient(
  * @param uploadId Upload ID
  * @return true on success
  */
-native bool:REST_CancelUpload(uploadId) = PawnREST_CancelUpload;
+native bool:REST_CancelUpload(uploadId);
 
 /**
  * Returns the current status of an outgoing upload.
@@ -655,7 +655,7 @@ native bool:REST_CancelUpload(uploadId) = PawnREST_CancelUpload;
  * @param uploadId Upload ID
  * @return Upload status code
  */
-native REST_GetUploadStatus(uploadId) = PawnREST_GetUploadStatus;
+native REST_GetUploadStatus(uploadId);
 
 /**
  * Returns the current progress percentage of an outgoing upload.
@@ -663,7 +663,7 @@ native REST_GetUploadStatus(uploadId) = PawnREST_GetUploadStatus;
  * @param uploadId Upload ID
  * @return Progress from 0 to 100
  */
-native REST_GetUploadProgress(uploadId) = PawnREST_GetUploadProgress;
+native REST_GetUploadProgress(uploadId);
 
 /**
  * Returns the response body of a completed outgoing upload.
@@ -676,7 +676,7 @@ native REST_GetUploadProgress(uploadId) = PawnREST_GetUploadProgress;
  * @param outputSize Buffer size
  * @return 1 if upload completed successfully, 0 otherwise
  */
-native REST_GetUploadResponse(uploadId, output[], outputSize) = PawnREST_GetUploadResponse;
+native REST_GetUploadResponse(uploadId, output[], outputSize);
 
 /**
  * Returns structured error code for an outgoing upload.
@@ -684,7 +684,7 @@ native REST_GetUploadResponse(uploadId, output[], outputSize) = PawnREST_GetUplo
  * @param uploadId Upload ID
  * @return PAWNREST_ERR_* code, or -1 if upload not found
  */
-native REST_GetUploadErrorCode(uploadId) = PawnREST_GetUploadErrorCode;
+native REST_GetUploadErrorCode(uploadId);
 
 /**
  * Returns structured error type string for an outgoing upload.
@@ -694,7 +694,7 @@ native REST_GetUploadErrorCode(uploadId) = PawnREST_GetUploadErrorCode;
  * @param outputSize Buffer size
  * @return 1 if available, 0 otherwise
  */
-native REST_GetUploadErrorType(uploadId, output[], outputSize) = PawnREST_GetUploadErrorType;
+native REST_GetUploadErrorType(uploadId, output[], outputSize);
 
 /**
  * Returns last HTTP status code for an outgoing upload.
@@ -702,7 +702,7 @@ native REST_GetUploadErrorType(uploadId, output[], outputSize) = PawnREST_GetUpl
  * @param uploadId Upload ID
  * @return HTTP status or 0 if unavailable
  */
-native REST_GetUploadHttpStatus(uploadId) = PawnREST_GetUploadHttpStatus;
+native REST_GetUploadHttpStatus(uploadId);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Outbound Requests
@@ -711,10 +711,10 @@ native REST_GetUploadHttpStatus(uploadId) = PawnREST_GetUploadHttpStatus;
 /**
  * Creates a reusable outbound HTTP client (base URL + default headers).
  */
-native REST_RequestsClient(const endpoint[], const defaultHeaders[] = "", bool:verifyTls = true) = PawnREST_RequestsClient;
-native bool:REST_RemoveRequestsClient(clientId) = PawnREST_RemoveRequestsClient;
-native bool:REST_SetRequestsClientHeader(clientId, const name[], const value[]) = PawnREST_SetRequestsClientHeader;
-native bool:REST_RemoveRequestsClientHeader(clientId, const name[]) = PawnREST_RemoveRequestsClientHeader;
+native REST_RequestsClient(const endpoint[], const defaultHeaders[] = "", bool:verifyTls = true);
+native bool:REST_RemoveRequestsClient(clientId);
+native bool:REST_SetRequestsClientHeader(clientId, const name[], const value[]);
+native bool:REST_RemoveRequestsClientHeader(clientId, const name[]);
 
 /**
  * Sends a text request asynchronously.
@@ -727,7 +727,7 @@ native REST_Request(
     const callback[],
     const body[] = "",
     const headers[] = ""
-) = PawnREST_Request;
+);
 
 /**
  * Sends a JSON request asynchronously.
@@ -742,14 +742,14 @@ native REST_RequestJSON(
     const callback[],
     jsonNodeId = -1,
     const headers[] = ""
-) = PawnREST_RequestJSON;
+);
 
-native bool:REST_CancelRequest(requestId) = PawnREST_CancelRequest;
-native REST_GetRequestStatus(requestId) = PawnREST_GetRequestStatus;
-native REST_GetRequestHttpStatus(requestId) = PawnREST_GetRequestHttpStatus;
-native REST_GetRequestErrorCode(requestId) = PawnREST_GetRequestErrorCode;
-native REST_GetRequestErrorType(requestId, output[], outputSize) = PawnREST_GetRequestErrorType;
-native REST_GetRequestResponse(requestId, output[], outputSize) = PawnREST_GetRequestResponse;
+native bool:REST_CancelRequest(requestId);
+native REST_GetRequestStatus(requestId);
+native REST_GetRequestHttpStatus(requestId);
+native REST_GetRequestErrorCode(requestId);
+native REST_GetRequestErrorType(requestId, output[], outputSize);
+native REST_GetRequestResponse(requestId, output[], outputSize);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WebSocket Client
@@ -759,19 +759,19 @@ native REST_GetRequestResponse(requestId, output[], outputSize) = PawnREST_GetRe
  * Text websocket.
  * Callback signature: callback(socketId, const data[], dataLen)
  */
-native REST_WebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true) = PawnREST_WebSocketClient;
+native REST_WebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true);
 
 /**
  * JSON websocket.
  * Callback signature: callback(socketId, nodeId)
  */
-native REST_JsonWebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true) = PawnREST_JsonWebSocketClient;
+native REST_JsonWebSocketClient(const address[], const callback[], const headers[] = "", bool:verifyTls = true);
 
-native bool:REST_WebSocketSend(socketId, const data[]) = PawnREST_WebSocketSend;
-native bool:REST_JsonWebSocketSend(socketId, nodeId) = PawnREST_JsonWebSocketSend;
-native bool:REST_WebSocketClose(socketId, status = 1000, const reason[] = "") = PawnREST_WebSocketClose;
-native bool:REST_RemoveWebSocketClient(socketId) = PawnREST_RemoveWebSocketClient;
-native bool:REST_IsWebSocketOpen(socketId) = PawnREST_IsWebSocketOpen;
+native bool:REST_WebSocketSend(socketId, const data[]);
+native bool:REST_JsonWebSocketSend(socketId, nodeId);
+native bool:REST_WebSocketClose(socketId, status = 1000, const reason[] = "");
+native bool:REST_RemoveWebSocketClient(socketId);
+native bool:REST_IsWebSocketOpen(socketId);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CRC32 Utilities
@@ -784,7 +784,7 @@ native bool:REST_IsWebSocketOpen(socketId) = PawnREST_IsWebSocketOpen;
  * @param expectedCrc Expected CRC32 string
  * @return 1 if match, 0 if mismatch, -1 on error
  */
-native REST_VerifyCRC32(const filepath[], const expectedCrc[]) = PawnREST_VerifyCRC32;
+native REST_VerifyCRC32(const filepath[], const expectedCrc[]);
 
 /**
  * Calculates the CRC32 checksum of a local file.
@@ -794,7 +794,7 @@ native REST_VerifyCRC32(const filepath[], const expectedCrc[]) = PawnREST_Verify
  * @param outputSize Buffer size
  * @return 1 on success, 0 on failure
  */
-native REST_GetFileCRC32(const filepath[], output[], outputSize) = PawnREST_GetFileCRC32;
+native REST_GetFileCRC32(const filepath[], output[], outputSize);
 
 /**
  * Compares two local files using CRC32.
@@ -803,7 +803,7 @@ native REST_GetFileCRC32(const filepath[], output[], outputSize) = PawnREST_GetF
  * @param path2 Second file path
  * @return 1 if identical, 0 if different, -1 on error
  */
-native REST_CompareFiles(const path1[], const path2[]) = PawnREST_CompareFiles;
+native REST_CompareFiles(const path1[], const path2[]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Incoming Callbacks

@@ -13,6 +13,7 @@ Official documentation for PawnREST: an open.mp/SA-MP component that provides in
 | [WebSocket Guide](WebSocket-Guide) | Text/JSON websocket client usage and lifecycle |
 | [Callbacks](Callbacks) | Callback signatures and runtime behavior |
 | [Use Cases](Use-Cases) | Practical deployment patterns and integration ideas |
+| [Troubleshooting](Troubleshooting) | Deployment/runtime diagnostics and quick fixes |
 
 ## Capability Matrix
 
@@ -34,6 +35,7 @@ Official documentation for PawnREST: an open.mp/SA-MP component that provides in
 3. Outbound HTTP/websocket flows are asynchronous and callback-driven.
 4. Route authentication uses `Authorization: Bearer <token>`.
 5. Structured error codes use `PAWNREST_ERR_*`.
+6. `REST_GetHeader` lookup is case-insensitive; `REST_GetQuery*` reads query params from request URL target.
 
 ## Architecture Summary
 

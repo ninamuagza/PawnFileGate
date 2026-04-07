@@ -28,6 +28,11 @@ public OnGameModeInit()
     REST_SetCorruptAction(g_MapRoute, CORRUPT_QUARANTINE);
     REST_SetRequireCRC32(g_MapRoute, true);
 
+    // Enable REST API endpoints for file management:
+    //   GET  /maps/files          -> list files (JSON: { success, count, files: ["a.map","b.json"] })
+    //   GET  /maps/files/{name}   -> download file (raw binary)
+    //   GET  /maps/files/{name}/info -> file metadata (JSON: { success, name, size, modified })
+    //   DELETE /maps/files/{name} -> delete file (JSON: { success, deleted })
     REST_AllowList(g_MapRoute, true);
     REST_AllowDownload(g_MapRoute, true);
     REST_AllowDelete(g_MapRoute, true);

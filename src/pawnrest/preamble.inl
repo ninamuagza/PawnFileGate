@@ -59,8 +59,8 @@ class PawnRESTComponent;
 static PawnRESTComponent* g_Component = nullptr;
 static PawnRESTComponent* GetComponent() { return g_Component; }
 
-cell AMX_NATIVE_CALL PawnREST_JsonObjectVariadic(AMX* amx, const cell* params);
-cell AMX_NATIVE_CALL PawnREST_JsonArrayVariadic(AMX* amx, const cell* params);
+cell AMX_NATIVE_CALL REST_JsonObjectVariadic(AMX* amx, const cell* params);
+cell AMX_NATIVE_CALL REST_JsonArrayVariadic(AMX* amx, const cell* params);
 
 enum class ConflictMode {
     Rename,

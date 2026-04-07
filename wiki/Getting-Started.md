@@ -12,6 +12,22 @@ This page walks through a minimal, production-shaped setup: server bootstrap, fi
 #include <PawnREST>
 ```
 
+Linux note:
+
+- The plugin architecture must match your server runtime (`32-bit` vs `64-bit`).
+- Check with: `file components/pawnrest.so`
+- If your environment requires 32-bit, build with `-m32`:
+
+```bash
+cmake -S . -B build-32 -G Ninja \
+  -DCMAKE_C_FLAGS=-m32 \
+  -DCMAKE_CXX_FLAGS=-m32 \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build-32 --parallel
+```
+
+`docker/build.sh` already compiles with `-m32` by default.
+
 ## 2. Bootstrap the HTTP Server
 
 ```pawn
@@ -142,3 +158,4 @@ curl -X POST http://127.0.0.1:8080/api/announce \
 1. Review all natives in [API Reference](API-Reference).
 2. Follow [JSON Node Guide](JSON-Node-Guide) for ownership/lifecycle rules.
 3. Add outbound integrations with [Outbound HTTP Guide](Outbound-HTTP-Guide) and [WebSocket Guide](WebSocket-Guide).
+4. Use [Troubleshooting](Troubleshooting) for architecture mismatch, route 404, and missing-input diagnostics.

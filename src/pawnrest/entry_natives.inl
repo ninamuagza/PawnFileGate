@@ -28,7 +28,7 @@ static bool ReadAmxStringArg(AMX* amx, cell arg, std::string& out)
     return true;
 }
 
-cell AMX_NATIVE_CALL PawnREST_JsonObjectVariadic(AMX* amx, const cell* params)
+cell AMX_NATIVE_CALL REST_JsonObjectVariadic(AMX* amx, const cell* params)
 {
     auto c = GetComponent();
     if (!c) return -1;
@@ -68,7 +68,7 @@ cell AMX_NATIVE_CALL PawnREST_JsonObjectVariadic(AMX* amx, const cell* params)
     return objectId;
 }
 
-cell AMX_NATIVE_CALL PawnREST_JsonArrayVariadic(AMX* amx, const cell* params)
+cell AMX_NATIVE_CALL REST_JsonArrayVariadic(AMX* amx, const cell* params)
 {
     (void)amx;
 
@@ -100,7 +100,7 @@ cell AMX_NATIVE_CALL PawnREST_JsonArrayVariadic(AMX* amx, const cell* params)
 }
 
 // Server Control
-SCRIPT_API(PawnREST_Start, bool(int port))
+SCRIPT_API(REST_Start, bool(int port))
 {
     auto c = GetComponent();
     if (!c) return false;
@@ -108,7 +108,7 @@ SCRIPT_API(PawnREST_Start, bool(int port))
     return c->Start(port);
 }
 
-SCRIPT_API(PawnREST_StartTLS, bool(int port, const std::string& certPath, const std::string& keyPath))
+SCRIPT_API(REST_StartTLS, bool(int port, const std::string& certPath, const std::string& keyPath))
 {
     auto c = GetComponent();
     if (!c) return false;
@@ -116,28 +116,28 @@ SCRIPT_API(PawnREST_StartTLS, bool(int port, const std::string& certPath, const 
     return c->StartTLS(port, certPath, keyPath);
 }
 
-SCRIPT_API(PawnREST_Stop, bool())
+SCRIPT_API(REST_Stop, bool())
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->Stop();
 }
 
-SCRIPT_API(PawnREST_IsRunning, int())
+SCRIPT_API(REST_IsRunning, int())
 {
     auto c = GetComponent();
     if (!c) return 0;
     return c->IsRunning() ? 1 : 0;
 }
 
-SCRIPT_API(PawnREST_GetPort, int())
+SCRIPT_API(REST_GetPort, int())
 {
     auto c = GetComponent();
     if (!c) return 0;
     return c->GetPort();
 }
 
-SCRIPT_API(PawnREST_IsTLSEnabled, int())
+SCRIPT_API(REST_IsTLSEnabled, int())
 {
     auto c = GetComponent();
     if (!c) return 0;
@@ -145,7 +145,7 @@ SCRIPT_API(PawnREST_IsTLSEnabled, int())
 }
 
 // Receive Routes
-SCRIPT_API(PawnREST_RegisterRoute,
+SCRIPT_API(REST_RegisterRoute,
     int(const std::string& endpoint, const std::string& path,
         const std::string& allowedExts, int maxSizeMb))
 {
@@ -154,42 +154,42 @@ SCRIPT_API(PawnREST_RegisterRoute,
     return c->RegisterRoute(endpoint, path, allowedExts, maxSizeMb);
 }
 
-SCRIPT_API(PawnREST_AddKey, bool(int routeId, const std::string& key))
+SCRIPT_API(REST_AddKey, bool(int routeId, const std::string& key))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->AddKeyToRoute(routeId, key);
 }
 
-SCRIPT_API(PawnREST_RemoveKey, bool(int routeId, const std::string& key))
+SCRIPT_API(REST_RemoveKey, bool(int routeId, const std::string& key))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->RemoveKeyFromRoute(routeId, key);
 }
 
-SCRIPT_API(PawnREST_SetConflict, bool(int routeId, int mode))
+SCRIPT_API(REST_SetConflict, bool(int routeId, int mode))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->SetConflictMode(routeId, mode);
 }
 
-SCRIPT_API(PawnREST_SetCorruptAction, bool(int routeId, int action))
+SCRIPT_API(REST_SetCorruptAction, bool(int routeId, int action))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->SetCorruptAction(routeId, action);
 }
 
-SCRIPT_API(PawnREST_SetRequireCRC32, bool(int routeId, bool required))
+SCRIPT_API(REST_SetRequireCRC32, bool(int routeId, bool required))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->SetRequireCRC32(routeId, required);
 }
 
-SCRIPT_API(PawnREST_RemoveRoute, bool(int routeId))
+SCRIPT_API(REST_RemoveRoute, bool(int routeId))
 {
     auto c = GetComponent();
     if (!c) return false;
@@ -200,21 +200,21 @@ SCRIPT_API(PawnREST_RemoveRoute, bool(int routeId))
 // REST API Natives
 // ═══════════════════════════════════════════════════════════════════════════
 
-SCRIPT_API(PawnREST_Route, int(int method, const std::string& endpoint, const std::string& callback))
+SCRIPT_API(REST_Route, int(int method, const std::string& endpoint, const std::string& callback))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->RegisterApiRoute(method, endpoint, callback);
 }
 
-SCRIPT_API(PawnREST_RemoveAPIRoute, bool(int routeId))
+SCRIPT_API(REST_RemoveAPIRoute, bool(int routeId))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->RemoveApiRoute(routeId);
 }
 
-SCRIPT_API(PawnREST_SetRouteAuth, bool(int routeId, const std::string& key))
+SCRIPT_API(REST_SetRouteAuth, bool(int routeId, const std::string& key))
 {
     auto c = GetComponent();
     if (!c) return false;
@@ -222,41 +222,41 @@ SCRIPT_API(PawnREST_SetRouteAuth, bool(int routeId, const std::string& key))
 }
 
 // Request data access
-SCRIPT_API(PawnREST_GetRequestIP, int(int requestId, std::string& output, int outputSize))
+SCRIPT_API(REST_GetRequestIP, int(int requestId, std::string& output))
 {
     auto c = GetComponent();
     if (!c) { output = ""; return 0; }
     std::string ip = c->GetRequestIP(requestId);
-    output = ip.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    output = ip;
     return ip.empty() ? 0 : 1;
 }
 
-SCRIPT_API(PawnREST_GetRequestMethod, int(int requestId))
+SCRIPT_API(REST_GetRequestMethod, int(int requestId))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->GetRequestMethod(requestId);
 }
 
-SCRIPT_API(PawnREST_GetRequestPath, int(int requestId, std::string& output, int outputSize))
+SCRIPT_API(REST_GetRequestPath, int(int requestId, std::string& output))
 {
     auto c = GetComponent();
     if (!c) { output = ""; return 0; }
     std::string path = c->GetRequestPath(requestId);
-    output = path.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    output = path;
     return path.empty() ? 0 : 1;
 }
 
-SCRIPT_API(PawnREST_GetRequestBody, int(int requestId, std::string& output, int outputSize))
+SCRIPT_API(REST_GetRequestBody, int(int requestId, std::string& output))
 {
     auto c = GetComponent();
     if (!c) { output = ""; return 0; }
     std::string body = c->GetRequestBody(requestId);
-    output = body.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    output = body;
     return static_cast<int>(body.size());
 }
 
-SCRIPT_API(PawnREST_GetRequestBodyLength, int(int requestId))
+SCRIPT_API(REST_GetRequestBodyLength, int(int requestId))
 {
     auto c = GetComponent();
     if (!c) return 0;
@@ -264,16 +264,16 @@ SCRIPT_API(PawnREST_GetRequestBodyLength, int(int requestId))
 }
 
 // URL parameters
-SCRIPT_API(PawnREST_GetParam, int(int requestId, const std::string& name, std::string& output, int outputSize))
+SCRIPT_API(REST_GetParam, int(int requestId, const std::string& name, std::string& output))
 {
     auto c = GetComponent();
     if (!c) { output = ""; return 0; }
     std::string val = c->GetParam(requestId, name);
-    output = val.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    output = val;
     return val.empty() ? 0 : 1;
 }
 
-SCRIPT_API(PawnREST_GetParamInt, int(int requestId, const std::string& name))
+SCRIPT_API(REST_GetParamInt, int(int requestId, const std::string& name))
 {
     auto c = GetComponent();
     if (!c) return 0;
@@ -281,16 +281,16 @@ SCRIPT_API(PawnREST_GetParamInt, int(int requestId, const std::string& name))
 }
 
 // Query string
-SCRIPT_API(PawnREST_GetQuery, int(int requestId, const std::string& name, std::string& output, int outputSize))
+SCRIPT_API(REST_GetQuery, int(int requestId, const std::string& name, std::string& output))
 {
     auto c = GetComponent();
     if (!c) { output = ""; return 0; }
     std::string val = c->GetQuery(requestId, name);
-    output = val.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    output = val;
     return val.empty() ? 0 : 1;
 }
 
-SCRIPT_API(PawnREST_GetQueryInt, int(int requestId, const std::string& name, int defaultValue))
+SCRIPT_API(REST_GetQueryInt, int(int requestId, const std::string& name, int defaultValue))
 {
     auto c = GetComponent();
     if (!c) return defaultValue;
@@ -298,243 +298,243 @@ SCRIPT_API(PawnREST_GetQueryInt, int(int requestId, const std::string& name, int
 }
 
 // Headers
-SCRIPT_API(PawnREST_GetHeader, int(int requestId, const std::string& name, std::string& output, int outputSize))
+SCRIPT_API(REST_GetHeader, int(int requestId, const std::string& name, std::string& output))
 {
     auto c = GetComponent();
     if (!c) { output = ""; return 0; }
     std::string val = c->GetHeader(requestId, name);
-    output = val.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    output = val;
     return val.empty() ? 0 : 1;
 }
 
 // JSON Node API
-SCRIPT_API(PawnREST_JsonParseNode, int(const std::string& json))
+SCRIPT_API(REST_JsonParseNode, int(const std::string& json))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->ParseJsonNode(json);
 }
 
-SCRIPT_API(PawnREST_RequestJsonNode, int(int requestId))
+SCRIPT_API(REST_RequestJsonNode, int(int requestId))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->ParseRequestJsonNode(requestId);
 }
 
-SCRIPT_API(PawnREST_NodeType, int(int nodeId))
+SCRIPT_API(REST_NodeType, int(int nodeId))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->JsonNodeType(nodeId);
 }
 
-SCRIPT_API(PawnREST_NodeStringify, int(int nodeId, std::string& output, int outputSize))
+SCRIPT_API(REST_NodeStringify, int(int nodeId, std::string& output))
 {
     auto c = GetComponent();
     if (!c) { output.clear(); return 0; }
-    return c->JsonNodeStringify(nodeId, output, outputSize) ? 1 : 0;
+    return c->JsonNodeStringify(nodeId, output, INT_MAX) ? 1 : 0;
 }
 
-SCRIPT_API(PawnREST_NodeRelease, bool(int nodeId))
+SCRIPT_API(REST_NodeRelease, bool(int nodeId))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->ReleaseJsonNode(nodeId);
 }
 
-SCRIPT_API(PawnREST_NodeObject, int())
+SCRIPT_API(REST_NodeObject, int())
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->JsonNodeObject();
 }
 
-SCRIPT_API(PawnREST_NodeArray, int())
+SCRIPT_API(REST_NodeArray, int())
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->JsonNodeArray();
 }
 
-SCRIPT_API(PawnREST_NodeString, int(const std::string& value))
+SCRIPT_API(REST_NodeString, int(const std::string& value))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->JsonNodeString(value);
 }
 
-SCRIPT_API(PawnREST_NodeInt, int(int value))
+SCRIPT_API(REST_NodeInt, int(int value))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->JsonNodeInt(value);
 }
 
-SCRIPT_API(PawnREST_NodeFloat, int(float value))
+SCRIPT_API(REST_NodeFloat, int(float value))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->JsonNodeFloat(value);
 }
 
-SCRIPT_API(PawnREST_NodeBool, int(bool value))
+SCRIPT_API(REST_NodeBool, int(bool value))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->JsonNodeBool(value);
 }
 
-SCRIPT_API(PawnREST_NodeNull, int())
+SCRIPT_API(REST_NodeNull, int())
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->JsonNodeNull();
 }
 
-SCRIPT_API(PawnREST_NodeSet, bool(int objectNodeId, const std::string& key, int valueNodeId))
+SCRIPT_API(REST_NodeSet, bool(int objectNodeId, const std::string& key, int valueNodeId))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeSet(objectNodeId, key, valueNodeId);
 }
 
-SCRIPT_API(PawnREST_NodeSetString, bool(int objectNodeId, const std::string& key, const std::string& value))
+SCRIPT_API(REST_NodeSetString, bool(int objectNodeId, const std::string& key, const std::string& value))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeSetString(objectNodeId, key, value);
 }
 
-SCRIPT_API(PawnREST_NodeSetInt, bool(int objectNodeId, const std::string& key, int value))
+SCRIPT_API(REST_NodeSetInt, bool(int objectNodeId, const std::string& key, int value))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeSetInt(objectNodeId, key, value);
 }
 
-SCRIPT_API(PawnREST_NodeSetFloat, bool(int objectNodeId, const std::string& key, float value))
+SCRIPT_API(REST_NodeSetFloat, bool(int objectNodeId, const std::string& key, float value))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeSetFloat(objectNodeId, key, value);
 }
 
-SCRIPT_API(PawnREST_NodeSetBool, bool(int objectNodeId, const std::string& key, bool value))
+SCRIPT_API(REST_NodeSetBool, bool(int objectNodeId, const std::string& key, bool value))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeSetBool(objectNodeId, key, value);
 }
 
-SCRIPT_API(PawnREST_NodeSetNull, bool(int objectNodeId, const std::string& key))
+SCRIPT_API(REST_NodeSetNull, bool(int objectNodeId, const std::string& key))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeSetNull(objectNodeId, key);
 }
 
-SCRIPT_API(PawnREST_NodeHas, bool(int objectNodeId, const std::string& key))
+SCRIPT_API(REST_NodeHas, bool(int objectNodeId, const std::string& key))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeHas(objectNodeId, key);
 }
 
-SCRIPT_API(PawnREST_NodeGet, int(int objectNodeId, const std::string& key))
+SCRIPT_API(REST_NodeGet, int(int objectNodeId, const std::string& key))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->JsonNodeGet(objectNodeId, key);
 }
 
-SCRIPT_API(PawnREST_NodeGetString, int(int objectNodeId, const std::string& key, std::string& output, int outputSize))
+SCRIPT_API(REST_NodeGetString, int(int objectNodeId, const std::string& key, std::string& output))
 {
     auto c = GetComponent();
     if (!c) { output.clear(); return 0; }
     std::string value = c->JsonNodeGetString(objectNodeId, key, "");
-    output = value.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    output = value;
     return value.empty() ? 0 : 1;
 }
 
-SCRIPT_API(PawnREST_NodeGetInt, int(int objectNodeId, const std::string& key, int defaultValue))
+SCRIPT_API(REST_NodeGetInt, int(int objectNodeId, const std::string& key, int defaultValue))
 {
     auto c = GetComponent();
     if (!c) return defaultValue;
     return c->JsonNodeGetInt(objectNodeId, key, defaultValue);
 }
 
-SCRIPT_API(PawnREST_NodeGetFloat, float(int objectNodeId, const std::string& key, float defaultValue))
+SCRIPT_API(REST_NodeGetFloat, float(int objectNodeId, const std::string& key, float defaultValue))
 {
     auto c = GetComponent();
     if (!c) return defaultValue;
     return c->JsonNodeGetFloat(objectNodeId, key, defaultValue);
 }
 
-SCRIPT_API(PawnREST_NodeGetBool, bool(int objectNodeId, const std::string& key, bool defaultValue))
+SCRIPT_API(REST_NodeGetBool, bool(int objectNodeId, const std::string& key, bool defaultValue))
 {
     auto c = GetComponent();
     if (!c) return defaultValue;
     return c->JsonNodeGetBool(objectNodeId, key, defaultValue);
 }
 
-SCRIPT_API(PawnREST_NodeArrayLength, int(int arrayNodeId))
+SCRIPT_API(REST_NodeArrayLength, int(int arrayNodeId))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->JsonNodeArrayLength(arrayNodeId);
 }
 
-SCRIPT_API(PawnREST_NodeArrayGet, int(int arrayNodeId, int index))
+SCRIPT_API(REST_NodeArrayGet, int(int arrayNodeId, int index))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->JsonNodeArrayGet(arrayNodeId, index);
 }
 
-SCRIPT_API(PawnREST_NodeArrayPush, bool(int arrayNodeId, int valueNodeId))
+SCRIPT_API(REST_NodeArrayPush, bool(int arrayNodeId, int valueNodeId))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeArrayPush(arrayNodeId, valueNodeId);
 }
 
-SCRIPT_API(PawnREST_NodeArrayPushString, bool(int arrayNodeId, const std::string& value))
+SCRIPT_API(REST_NodeArrayPushString, bool(int arrayNodeId, const std::string& value))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeArrayPushString(arrayNodeId, value);
 }
 
-SCRIPT_API(PawnREST_NodeArrayPushInt, bool(int arrayNodeId, int value))
+SCRIPT_API(REST_NodeArrayPushInt, bool(int arrayNodeId, int value))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeArrayPushInt(arrayNodeId, value);
 }
 
-SCRIPT_API(PawnREST_NodeArrayPushFloat, bool(int arrayNodeId, float value))
+SCRIPT_API(REST_NodeArrayPushFloat, bool(int arrayNodeId, float value))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeArrayPushFloat(arrayNodeId, value);
 }
 
-SCRIPT_API(PawnREST_NodeArrayPushBool, bool(int arrayNodeId, bool value))
+SCRIPT_API(REST_NodeArrayPushBool, bool(int arrayNodeId, bool value))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeArrayPushBool(arrayNodeId, value);
 }
 
-SCRIPT_API(PawnREST_NodeArrayPushNull, bool(int arrayNodeId))
+SCRIPT_API(REST_NodeArrayPushNull, bool(int arrayNodeId))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->JsonNodeArrayPushNull(arrayNodeId);
 }
 
-SCRIPT_API(PawnREST_JsonAppend, int(int leftNodeId, int rightNodeId))
+SCRIPT_API(REST_JsonAppend, int(int leftNodeId, int rightNodeId))
 {
     auto c = GetComponent();
     if (!c) return -1;
@@ -542,35 +542,35 @@ SCRIPT_API(PawnREST_JsonAppend, int(int leftNodeId, int rightNodeId))
 }
 
 // Response methods
-SCRIPT_API(PawnREST_Respond, bool(int requestId, int status, const std::string& body, const std::string& contentType))
+SCRIPT_API(REST_Respond, bool(int requestId, int status, const std::string& body, const std::string& contentType))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->Respond(requestId, status, body, contentType);
 }
 
-SCRIPT_API(PawnREST_RespondJSON, bool(int requestId, int status, const std::string& json))
+SCRIPT_API(REST_RespondJSON, bool(int requestId, int status, const std::string& json))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->RespondJSON(requestId, status, json);
 }
 
-SCRIPT_API(PawnREST_RespondError, bool(int requestId, int status, const std::string& message))
+SCRIPT_API(REST_RespondError, bool(int requestId, int status, const std::string& message))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->RespondError(requestId, status, message);
 }
 
-SCRIPT_API(PawnREST_RespondNode, bool(int requestId, int status, int nodeId))
+SCRIPT_API(REST_RespondNode, bool(int requestId, int status, int nodeId))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->RespondNode(requestId, status, nodeId);
 }
 
-SCRIPT_API(PawnREST_SetResponseHeader, bool(int requestId, const std::string& name, const std::string& value))
+SCRIPT_API(REST_SetResponseHeader, bool(int requestId, const std::string& name, const std::string& value))
 {
     auto c = GetComponent();
     if (!c) return false;
@@ -578,28 +578,28 @@ SCRIPT_API(PawnREST_SetResponseHeader, bool(int requestId, const std::string& na
 }
 
 // File Route Permission Natives
-SCRIPT_API(PawnREST_AllowList, bool(int routeId, bool allow))
+SCRIPT_API(REST_AllowList, bool(int routeId, bool allow))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->SetAllowList(routeId, allow);
 }
 
-SCRIPT_API(PawnREST_AllowDownload, bool(int routeId, bool allow))
+SCRIPT_API(REST_AllowDownload, bool(int routeId, bool allow))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->SetAllowDownload(routeId, allow);
 }
 
-SCRIPT_API(PawnREST_AllowDelete, bool(int routeId, bool allow))
+SCRIPT_API(REST_AllowDelete, bool(int routeId, bool allow))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->SetAllowDelete(routeId, allow);
 }
 
-SCRIPT_API(PawnREST_AllowInfo, bool(int routeId, bool allow))
+SCRIPT_API(REST_AllowInfo, bool(int routeId, bool allow))
 {
     auto c = GetComponent();
     if (!c) return false;
@@ -607,30 +607,30 @@ SCRIPT_API(PawnREST_AllowInfo, bool(int routeId, bool allow))
 }
 
 // File Operation Natives
-SCRIPT_API(PawnREST_GetFileCount, int(int routeId))
+SCRIPT_API(REST_GetFileCount, int(int routeId))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->GetRouteFileCount(routeId);
 }
 
-SCRIPT_API(PawnREST_GetFileName, int(int routeId, int index, std::string& output, int outputSize))
+SCRIPT_API(REST_GetFileName, int(int routeId, int index, std::string& output))
 {
     auto c = GetComponent();
     if (!c) { output = ""; return 0; }
     std::string name = c->GetRouteFileName(routeId, index);
-    output = name.substr(0, outputSize > 0 ? outputSize - 1 : 0);
+    output = name;
     return name.empty() ? 0 : 1;
 }
 
-SCRIPT_API(PawnREST_DeleteFile, bool(int routeId, const std::string& filename))
+SCRIPT_API(REST_DeleteFile, bool(int routeId, const std::string& filename))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->DeleteRouteFile(routeId, filename);
 }
 
-SCRIPT_API(PawnREST_GetFileSize, int(int routeId, const std::string& filename))
+SCRIPT_API(REST_GetFileSize, int(int routeId, const std::string& filename))
 {
     auto c = GetComponent();
     if (!c) return 0;
@@ -639,7 +639,7 @@ SCRIPT_API(PawnREST_GetFileSize, int(int routeId, const std::string& filename))
 
 // Upload (Client) Natives
 // mode: 0 = multipart, 1 = raw
-SCRIPT_API(PawnREST_UploadFile,
+SCRIPT_API(REST_UploadFile,
     int(const std::string& url, const std::string& filepath,
         const std::string& filename, const std::string& authKey,
         const std::string& customHeaders, int calculateCrc32, int mode, int verifyTls))
@@ -649,35 +649,35 @@ SCRIPT_API(PawnREST_UploadFile,
     return c->QueueUpload(url, filepath, filename, authKey, customHeaders, calculateCrc32 != 0, mode, verifyTls != 0);
 }
 
-SCRIPT_API(PawnREST_CreateUploadClient, int(const std::string& baseUrl, const std::string& defaultHeaders, bool verifyTls))
+SCRIPT_API(REST_CreateUploadClient, int(const std::string& baseUrl, const std::string& defaultHeaders, bool verifyTls))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->CreateUploadClient(baseUrl, defaultHeaders, verifyTls);
 }
 
-SCRIPT_API(PawnREST_RemoveUploadClient, bool(int clientId))
+SCRIPT_API(REST_RemoveUploadClient, bool(int clientId))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->RemoveUploadClient(clientId);
 }
 
-SCRIPT_API(PawnREST_SetUploadClientHeader, bool(int clientId, const std::string& name, const std::string& value))
+SCRIPT_API(REST_SetUploadClientHeader, bool(int clientId, const std::string& name, const std::string& value))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->SetUploadClientHeader(clientId, name, value);
 }
 
-SCRIPT_API(PawnREST_RemoveUploadClientHeader, bool(int clientId, const std::string& name))
+SCRIPT_API(REST_RemoveUploadClientHeader, bool(int clientId, const std::string& name))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->RemoveUploadClientHeader(clientId, name);
 }
 
-SCRIPT_API(PawnREST_UploadFileWithClient,
+SCRIPT_API(REST_UploadFileWithClient,
     int(int clientId, const std::string& path, const std::string& filepath,
         const std::string& filename, const std::string& authKey,
         const std::string& customHeaders, int calculateCrc32, int mode))
@@ -687,55 +687,55 @@ SCRIPT_API(PawnREST_UploadFileWithClient,
     return c->QueueUploadWithClient(clientId, path, filepath, filename, authKey, customHeaders, calculateCrc32 != 0, mode);
 }
 
-SCRIPT_API(PawnREST_CancelUpload, bool(int uploadId))
+SCRIPT_API(REST_CancelUpload, bool(int uploadId))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->CancelUpload(uploadId);
 }
 
-SCRIPT_API(PawnREST_GetUploadStatus, int(int uploadId))
+SCRIPT_API(REST_GetUploadStatus, int(int uploadId))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->GetUploadStatus(uploadId);
 }
 
-SCRIPT_API(PawnREST_GetUploadProgress, int(int uploadId))
+SCRIPT_API(REST_GetUploadProgress, int(int uploadId))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->GetUploadProgress(uploadId);
 }
 
-SCRIPT_API(PawnREST_GetUploadResponse, int(int uploadId, std::string& output, int outputSize))
+SCRIPT_API(REST_GetUploadResponse, int(int uploadId, std::string& output))
 {
     auto c = GetComponent();
     if (!c) {
         output = "";
         return 0;
     }
-    return c->GetUploadResponse(uploadId, output, outputSize) ? 1 : 0;
+    return c->GetUploadResponse(uploadId, output, INT_MAX) ? 1 : 0;
 }
 
-SCRIPT_API(PawnREST_GetUploadErrorCode, int(int uploadId))
+SCRIPT_API(REST_GetUploadErrorCode, int(int uploadId))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->GetUploadErrorCode(uploadId);
 }
 
-SCRIPT_API(PawnREST_GetUploadErrorType, int(int uploadId, std::string& output, int outputSize))
+SCRIPT_API(REST_GetUploadErrorType, int(int uploadId, std::string& output))
 {
     auto c = GetComponent();
     if (!c) {
         output.clear();
         return 0;
     }
-    return c->GetUploadErrorType(uploadId, output, outputSize) ? 1 : 0;
+    return c->GetUploadErrorType(uploadId, output, INT_MAX) ? 1 : 0;
 }
 
-SCRIPT_API(PawnREST_GetUploadHttpStatus, int(int uploadId))
+SCRIPT_API(REST_GetUploadHttpStatus, int(int uploadId))
 {
     auto c = GetComponent();
     if (!c) return 0;
@@ -743,35 +743,35 @@ SCRIPT_API(PawnREST_GetUploadHttpStatus, int(int uploadId))
 }
 
 // Outbound Request (Requests-style) Natives
-SCRIPT_API(PawnREST_RequestsClient, int(const std::string& endpoint, const std::string& defaultHeaders, int verifyTls))
+SCRIPT_API(REST_RequestsClient, int(const std::string& endpoint, const std::string& defaultHeaders, int verifyTls))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->CreateRequestClient(endpoint, defaultHeaders, verifyTls != 0);
 }
 
-SCRIPT_API(PawnREST_RemoveRequestsClient, bool(int clientId))
+SCRIPT_API(REST_RemoveRequestsClient, bool(int clientId))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->RemoveRequestClient(clientId);
 }
 
-SCRIPT_API(PawnREST_SetRequestsClientHeader, bool(int clientId, const std::string& name, const std::string& value))
+SCRIPT_API(REST_SetRequestsClientHeader, bool(int clientId, const std::string& name, const std::string& value))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->SetRequestClientHeader(clientId, name, value);
 }
 
-SCRIPT_API(PawnREST_RemoveRequestsClientHeader, bool(int clientId, const std::string& name))
+SCRIPT_API(REST_RemoveRequestsClientHeader, bool(int clientId, const std::string& name))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->RemoveRequestClientHeader(clientId, name);
 }
 
-SCRIPT_API(PawnREST_Request,
+SCRIPT_API(REST_Request,
     int(int clientId, const std::string& path, int method, const std::string& callback, const std::string& body, const std::string& customHeaders))
 {
     auto c = GetComponent();
@@ -779,7 +779,7 @@ SCRIPT_API(PawnREST_Request,
     return c->QueueOutboundRequest(clientId, path, method, callback, body, customHeaders, false);
 }
 
-SCRIPT_API(PawnREST_RequestJSON,
+SCRIPT_API(REST_RequestJSON,
     int(int clientId, const std::string& path, int method, const std::string& callback, int jsonNodeId, const std::string& customHeaders))
 {
     auto c = GetComponent();
@@ -795,98 +795,98 @@ SCRIPT_API(PawnREST_RequestJSON,
     return c->QueueOutboundRequest(clientId, path, method, callback, body, customHeaders, true);
 }
 
-SCRIPT_API(PawnREST_CancelRequest, bool(int requestId))
+SCRIPT_API(REST_CancelRequest, bool(int requestId))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->CancelOutboundRequest(requestId);
 }
 
-SCRIPT_API(PawnREST_GetRequestStatus, int(int requestId))
+SCRIPT_API(REST_GetRequestStatus, int(int requestId))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->GetOutboundRequestStatus(requestId);
 }
 
-SCRIPT_API(PawnREST_GetRequestHttpStatus, int(int requestId))
+SCRIPT_API(REST_GetRequestHttpStatus, int(int requestId))
 {
     auto c = GetComponent();
     if (!c) return 0;
     return c->GetOutboundRequestHttpStatus(requestId);
 }
 
-SCRIPT_API(PawnREST_GetRequestErrorCode, int(int requestId))
+SCRIPT_API(REST_GetRequestErrorCode, int(int requestId))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->GetOutboundRequestErrorCode(requestId);
 }
 
-SCRIPT_API(PawnREST_GetRequestErrorType, int(int requestId, std::string& output, int outputSize))
+SCRIPT_API(REST_GetRequestErrorType, int(int requestId, std::string& output))
 {
     auto c = GetComponent();
     if (!c) {
         output.clear();
         return 0;
     }
-    return c->GetOutboundRequestErrorType(requestId, output, outputSize) ? 1 : 0;
+    return c->GetOutboundRequestErrorType(requestId, output, INT_MAX) ? 1 : 0;
 }
 
-SCRIPT_API(PawnREST_GetRequestResponse, int(int requestId, std::string& output, int outputSize))
+SCRIPT_API(REST_GetRequestResponse, int(int requestId, std::string& output))
 {
     auto c = GetComponent();
     if (!c) {
         output.clear();
         return 0;
     }
-    return c->GetOutboundRequestResponse(requestId, output, outputSize) ? 1 : 0;
+    return c->GetOutboundRequestResponse(requestId, output, INT_MAX) ? 1 : 0;
 }
 
 // WebSocket Client Natives
-SCRIPT_API(PawnREST_WebSocketClient, int(const std::string& address, const std::string& callback, const std::string& headers, int verifyTls))
+SCRIPT_API(REST_WebSocketClient, int(const std::string& address, const std::string& callback, const std::string& headers, int verifyTls))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->ConnectWebSocketClient(address, callback, false, headers, verifyTls != 0);
 }
 
-SCRIPT_API(PawnREST_JsonWebSocketClient, int(const std::string& address, const std::string& callback, const std::string& headers, int verifyTls))
+SCRIPT_API(REST_JsonWebSocketClient, int(const std::string& address, const std::string& callback, const std::string& headers, int verifyTls))
 {
     auto c = GetComponent();
     if (!c) return -1;
     return c->ConnectWebSocketClient(address, callback, true, headers, verifyTls != 0);
 }
 
-SCRIPT_API(PawnREST_WebSocketSend, bool(int socketId, const std::string& data))
+SCRIPT_API(REST_WebSocketSend, bool(int socketId, const std::string& data))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->WebSocketSendText(socketId, data);
 }
 
-SCRIPT_API(PawnREST_JsonWebSocketSend, bool(int socketId, int nodeId))
+SCRIPT_API(REST_JsonWebSocketSend, bool(int socketId, int nodeId))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->WebSocketSendJson(socketId, nodeId);
 }
 
-SCRIPT_API(PawnREST_WebSocketClose, bool(int socketId, int status, const std::string& reason))
+SCRIPT_API(REST_WebSocketClose, bool(int socketId, int status, const std::string& reason))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->CloseWebSocketClient(socketId, status, reason);
 }
 
-SCRIPT_API(PawnREST_RemoveWebSocketClient, bool(int socketId))
+SCRIPT_API(REST_RemoveWebSocketClient, bool(int socketId))
 {
     auto c = GetComponent();
     if (!c) return false;
     return c->RemoveWebSocketClient(socketId);
 }
 
-SCRIPT_API(PawnREST_IsWebSocketOpen, bool(int socketId))
+SCRIPT_API(REST_IsWebSocketOpen, bool(int socketId))
 {
     auto c = GetComponent();
     if (!c) return false;
@@ -894,7 +894,7 @@ SCRIPT_API(PawnREST_IsWebSocketOpen, bool(int socketId))
 }
 
 // CRC32 Utilities
-SCRIPT_API(PawnREST_VerifyCRC32, int(const std::string& filepath, const std::string& expectedCrc))
+SCRIPT_API(REST_VerifyCRC32, int(const std::string& filepath, const std::string& expectedCrc))
 {
     auto c = GetComponent();
     if (!c) return -1;
@@ -910,7 +910,7 @@ SCRIPT_API(PawnREST_VerifyCRC32, int(const std::string& filepath, const std::str
     return (calculated == expected) ? 1 : 0;
 }
 
-SCRIPT_API(PawnREST_GetFileCRC32, int(const std::string& filepath, std::string& output, int outputSize))
+SCRIPT_API(REST_GetFileCRC32, int(const std::string& filepath, std::string& output))
 {
     auto c = GetComponent();
     if (!c) {
@@ -929,16 +929,11 @@ SCRIPT_API(PawnREST_GetFileCRC32, int(const std::string& filepath, std::string& 
     uint32_t crc = CRC32::fileChecksum(fullPath);
     std::string hex = CRC32::toHex(crc);
 
-    if (outputSize > 0) {
-        size_t copyLen = std::min(static_cast<size_t>(outputSize - 1), hex.length());
-        output.assign(hex.c_str(), copyLen);
-    } else {
-        output = "";
-    }
+    output = hex;
     return 1;
 }
 
-SCRIPT_API(PawnREST_CompareFiles, int(const std::string& path1, const std::string& path2))
+SCRIPT_API(REST_CompareFiles, int(const std::string& path1, const std::string& path2))
 {
     auto c = GetComponent();
     if (!c) return -1;

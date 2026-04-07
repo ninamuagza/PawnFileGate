@@ -1786,16 +1786,32 @@ private:
         ctx->clientIP = req.remote_addr;
         ctx->httpRes = &res;
         
-        // Parse query string
+        // Parse query string directly from request target first (more reliable across route styles).
+        auto qPos = req.target.find('?');
+        if (qPos != std::string::npos && qPos + 1 < req.target.size()) {
+            auto parsed = ParseQueryString(req.target.substr(qPos + 1));
+            for (const auto& kv : parsed) {
+                ctx->queries[kv.first] = kv.second;
+            }
+        }
+
+        // Fallback to httplib-provided params when available.
         if (!req.params.empty()) {
             for (const auto& kv : req.params) {
-                ctx->queries[kv.first] = kv.second;
+                if (ctx->queries.find(kv.first) == ctx->queries.end()) {
+                    ctx->queries[kv.first] = kv.second;
+                }
             }
         }
         
         // Copy relevant headers
         for (const auto& kv : req.headers) {
             ctx->headers[kv.first] = kv.second;
+            std::string lowered = kv.first;
+            for (char& c : lowered) {
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            }
+            ctx->headers[lowered] = kv.second;
         }
         
         return ctx;
@@ -1988,34 +2004,41 @@ private:
         
         std::lock_guard<std::mutex> lock(routesMutex);
         for (const auto& kv : routes) {
-            int capturedId = kv.first;
-            std::string endpoint = kv.second.endpoint;
-            
-            // GET {endpoint}/files - List files
-            httpServer->Get((endpoint + "/files").c_str(), 
-                [this, capturedId](const httplib::Request& req, httplib::Response& res) {
-                    HandleFileList(req, res, capturedId);
-                });
-            
-            // GET {endpoint}/files/{filename} - Download file
-            httpServer->Get((endpoint + "/files/(.+)").c_str(),
-                [this, capturedId](const httplib::Request& req, httplib::Response& res) {
-                    if (req.path.find("/info") != std::string::npos) return; // Skip if /info
-                    HandleFileDownload(req, res, capturedId);
-                });
-            
-            // GET {endpoint}/files/{filename}/info - File info
-            httpServer->Get((endpoint + "/files/(.+)/info").c_str(),
-                [this, capturedId](const httplib::Request& req, httplib::Response& res) {
-                    HandleFileInfo(req, res, capturedId);
-                });
-            
-            // DELETE {endpoint}/files/{filename} - Delete file
-            httpServer->Delete((endpoint + "/files/(.+)").c_str(),
-                [this, capturedId](const httplib::Request& req, httplib::Response& res) {
-                    HandleFileDelete(req, res, capturedId);
-                });
+            RegisterFileOpsForRoute(kv.first, kv.second.endpoint);
         }
+    }
+    
+    // Register file ops endpoints for a single route (called when route is created)
+    void RegisterFileOpsForRoute(int routeId, const std::string& endpoint)
+    {
+        if (!httpServer) return;
+        
+        int capturedId = routeId;
+        
+        // GET {endpoint}/files - List files
+        httpServer->Get((endpoint + "/files").c_str(), 
+            [this, capturedId](const httplib::Request& req, httplib::Response& res) {
+                HandleFileList(req, res, capturedId);
+            });
+        
+        // GET {endpoint}/files/{filename} - Download file
+        httpServer->Get((endpoint + "/files/(.+)").c_str(),
+            [this, capturedId](const httplib::Request& req, httplib::Response& res) {
+                if (req.path.find("/info") != std::string::npos) return; // Skip if /info
+                HandleFileDownload(req, res, capturedId);
+            });
+        
+        // GET {endpoint}/files/{filename}/info - File info
+        httpServer->Get((endpoint + "/files/(.+)/info").c_str(),
+            [this, capturedId](const httplib::Request& req, httplib::Response& res) {
+                HandleFileInfo(req, res, capturedId);
+            });
+        
+        // DELETE {endpoint}/files/{filename} - Delete file
+        httpServer->Delete((endpoint + "/files/(.+)").c_str(),
+            [this, capturedId](const httplib::Request& req, httplib::Response& res) {
+                HandleFileDelete(req, res, capturedId);
+            });
     }
     
     bool CheckFileRouteAuth(const UploadRoute& route, const httplib::Request& req)
@@ -2457,12 +2480,12 @@ public:
 
     StringView componentName() const override
     {
-        return "open.mp pawnrest";
+        return "PawnREST";
     }
 
     SemanticVersion componentVersion() const override
     {
-        return SemanticVersion(3, 0, 0, 0);
+        return SemanticVersion(1, 0, 3, 0);
     }
 
     void onLoad(ICore* c) override
@@ -2474,9 +2497,8 @@ public:
         FileUtils::CreateDirectory(serverRootPath + Config::TEMP_DIR);
 
         core->printLn(" ");
-        core->printLn("  PawnREST is ready.");
-        core->printLn("  Root path: %s", serverRootPath.c_str());
-        core->printLn("  Temp dir : %s", Config::TEMP_DIR);
+        core->printLn("  PawnREST v1.0.3 loaded.");
+        core->printLn("  Author: Fanorisky (https://github.com/Fanorisky/PawnREST)");
         core->printLn(" ");
 
         setAmxLookups(core);
@@ -2589,8 +2611,8 @@ public:
     void onAmxLoad(IPawnScript& script) override
     {
         pawn_natives::AmxLoad(script.GetAMX());
-        script.Register("PawnREST_JsonObject", &PawnREST_JsonObjectVariadic);
-        script.Register("PawnREST_JsonArray", &PawnREST_JsonArrayVariadic);
+        script.Register("REST_JsonObject", &REST_JsonObjectVariadic);
+        script.Register("REST_JsonArray", &REST_JsonArrayVariadic);
     }
 
     void onAmxUnload(IPawnScript&) override {}
@@ -2656,10 +2678,13 @@ public:
                     HandleUploadStreaming(req, res, content_reader, capturedId);
                 }
             );
+            
+            // Register file ops endpoints (list, download, delete, info)
+            RegisterFileOpsForRoute(id, capturedEndpoint);
         }
 
         if (core) {
-            core->printLn("  [PawnREST] Route registered: POST %s -> %s",
+            core->printLn("  Files: POST %s -> %s",
                 capturedEndpoint.c_str(), safePath.c_str());
         }
 
@@ -2822,7 +2847,7 @@ public:
         
         const char* methodNames[] = { "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS" };
         if (core) {
-            core->printLn("  [PawnREST] API route registered: %s %s -> %s()",
+            core->printLn("  API: %s %s -> %s()",
                 methodNames[method], endpoint.c_str(), callback.c_str());
         }
         
@@ -3078,6 +3103,13 @@ public:
         auto ctx = GetRequest(requestId);
         if (!ctx) return "";
         auto it = ctx->headers.find(name);
+        if (it != ctx->headers.end()) return it->second;
+
+        std::string lowered = name;
+        for (char& c : lowered) {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        it = ctx->headers.find(lowered);
         return (it != ctx->headers.end()) ? it->second : "";
     }
     

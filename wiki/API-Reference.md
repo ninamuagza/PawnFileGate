@@ -80,6 +80,11 @@ native REST_GetQueryInt(requestId, const name[], defaultValue = 0);
 native REST_GetHeader(requestId, const name[], output[], outputSize);
 ```
 
+Behavior notes:
+
+1. `REST_GetQuery*` reads query values from the full request target (`/path?key=value`) and falls back to parsed params.
+2. `REST_GetHeader` name matching is case-insensitive.
+
 ## JSON Node API
 
 ### Parse and Lifecycle
@@ -158,6 +163,36 @@ native REST_GetFileName(routeId, index, output[], outputSize);
 native bool:REST_DeleteFile(routeId, const filename[]);
 native REST_GetFileSize(routeId, const filename[]);
 ```
+
+### File Route REST Endpoints
+
+When enabled via `REST_Allow*`, the following HTTP endpoints are available:
+
+| Endpoint | Permission | Description |
+|----------|------------|-------------|
+| `GET {route}/files` | `REST_AllowList` | List all files |
+| `GET {route}/files/{name}` | `REST_AllowDownload` | Download file |
+| `GET {route}/files/{name}/info` | `REST_AllowInfo` | File metadata |
+| `DELETE {route}/files/{name}` | `REST_AllowDelete` | Delete file |
+
+### Response Formats
+
+**GET {route}/files:**
+```json
+{ "success": true, "count": 3, "files": ["file1.map", "file2.json", "test.map"] }
+```
+
+**GET {route}/files/{name}/info:**
+```json
+{ "success": true, "name": "file1.map", "size": 12345, "modified": 1712419200 }
+```
+
+**DELETE {route}/files/{name}:**
+```json
+{ "success": true, "deleted": "file1.map" }
+```
+
+**GET {route}/files/{name}:** Returns raw file content.
 
 ## Outgoing Upload API
 

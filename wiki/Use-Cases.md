@@ -94,3 +94,65 @@ For real deployments, pair the above use-cases with:
 2. strict upload constraints (extension, size, CRC32)
 3. TLS-enabled build when using HTTPS/WSS
 4. explicit handling for structured error callbacks
+
+## 8. Dataless Bot Gateway (Discord/Chat Bot)
+
+**Scenario**  
+Keep your bot/service layer stateless and let the open.mp server remain the single data authority.
+
+**Typical flow**
+1. Expose bot-only routes via `REST_Route` and protect them using `REST_SetRouteAuth`.
+2. Read critical identifiers from path/query/header/body as needed (`REST_GetParam*`, `REST_GetQuery*`, `REST_GetHeader`, `RequestJson`).
+3. Return consistent error payloads (`RespondError`) for missing input, not-found, and unauthorized cases.
+4. Keep bot-side logic focused on orchestration/UI while data access stays in gamemode callbacks.
+
+**Relevant APIs**  
+`REST_Route`, `REST_SetRouteAuth`, `REST_GetParam`, `REST_GetQuery`, `REST_GetHeader`, `RequestJson`, `RespondNode`, `RespondError`
+
+## 9. File Management via Bot/External Tools
+
+**Scenario**  
+Enable Discord bot or admin tools to list, upload, download, and delete files on the server without direct SSH access.
+
+**Typical flow**
+1. Register upload route with `REST_RegisterRoute`.
+2. Enable REST file ops: `REST_AllowList`, `REST_AllowDownload`, `REST_AllowDelete`, `REST_AllowInfo`.
+3. Protect with `REST_AddKey`.
+4. Bot/tool calls HTTP endpoints:
+   - `GET {route}/files` — list files (returns `{ files: ["a.map", "b.map"] }`)
+   - `GET {route}/files/{name}` — download file (raw binary)
+   - `GET {route}/files/{name}/info` — file metadata
+   - `DELETE {route}/files/{name}` — delete file
+   - `POST {route}` — upload file (multipart/form-data)
+
+**Client example (JavaScript/TypeScript):**
+```js
+// List files
+const list = await fetch('http://server:8080/maps/files', {
+  headers: { Authorization: 'Bearer secret-key' }
+}).then(r => r.json());
+// { success: true, count: 2, files: ["map1.map", "test.json"] }
+
+// Download file
+const data = await fetch('http://server:8080/maps/files/map1.map', {
+  headers: { Authorization: 'Bearer secret-key' }
+}).then(r => r.arrayBuffer());
+
+// Upload file
+const form = new FormData();
+form.append('file', blob, 'newmap.map');
+await fetch('http://server:8080/maps', {
+  method: 'POST',
+  headers: { Authorization: 'Bearer secret-key' },
+  body: form
+});
+
+// Delete file
+await fetch('http://server:8080/maps/files/oldmap.map', {
+  method: 'DELETE',
+  headers: { Authorization: 'Bearer secret-key' }
+});
+```
+
+**Relevant APIs**  
+`REST_RegisterRoute`, `REST_AddKey`, `REST_AllowList`, `REST_AllowDownload`, `REST_AllowDelete`, `REST_AllowInfo`

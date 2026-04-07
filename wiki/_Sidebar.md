@@ -11,3 +11,4 @@
 ### Operations
 - [Callbacks](Callbacks)
 - [Use Cases](Use-Cases)
+- [Troubleshooting](Troubleshooting)

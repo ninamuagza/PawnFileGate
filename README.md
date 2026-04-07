@@ -14,6 +14,7 @@ API documentation and use-case guides are available in [`wiki/`](./wiki/):
 - [`WebSocket Guide`](./wiki/WebSocket-Guide.md)
 - [`Callbacks`](./wiki/Callbacks.md)
 - [`Use Cases`](./wiki/Use-Cases.md)
+- [`Troubleshooting`](./wiki/Troubleshooting.md)
 
 ## Example Pawn Scripts
 
@@ -26,6 +27,7 @@ Ready-to-copy Pawn scripts are available in [`example/`](./example/):
 - `05_outbound_requests.pwn`
 - `06_websocket_client.pwn`
 - `07_crc_utils.pwn`
+- `08_request_input_fallbacks.pwn`
 
 ## Features
 
@@ -36,6 +38,7 @@ Ready-to-copy Pawn scripts are available in [`example/`](./example/):
 - **Outbound HTTP Requests** - `REST_RequestsClient` with `REST_Request` / `REST_RequestJSON`
 - **WebSocket Clients** - Text and JSON websocket clients (`ws://` and optional `wss://`)
 - **REST API Framework** - Create custom HTTP endpoints (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)
+- **Robust Request Accessors** - Query parsing from full URL target and case-insensitive header lookups
 - **Node-only JSON API** - Parse/build JSON with node handles
 - **Authorization** - Bearer token authentication per route
 - **TLS/HTTPS Support** - HTTPS server/client support when built with OpenSSL
@@ -52,6 +55,32 @@ Ready-to-copy Pawn scripts are available in [`example/`](./example/):
 4. Add `#include <PawnREST>` to your script
 
 The function prefix is `REST_*` (for example `REST_Start`, `REST_Route`, `REST_RegisterRoute`).
+
+### Linux Architecture Matching (Important)
+
+On Linux, the `pawnrest.so` architecture must match your open.mp runtime.  
+If your runtime expects 32-bit plugins but you deploy a 64-bit binary, endpoints may appear missing (`404`) or request values can look inconsistent.
+
+```bash
+file components/pawnrest.so
+```
+
+Typical output:
+
+- `ELF 32-bit ... Intel i386` -> 32-bit plugin
+- `ELF 64-bit ... x86-64` -> 64-bit plugin
+
+Build 32-bit from source:
+
+```bash
+cmake -S . -B build-32 -G Ninja \
+  -DCMAKE_C_FLAGS=-m32 \
+  -DCMAKE_CXX_FLAGS=-m32 \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build-32 --parallel
+```
+
+`docker/build.sh` already builds with `-m32` by default.
 
 To enable TLS/HTTPS in source builds, configure with `-DPAWNREST_ENABLE_TLS=ON` and provide OpenSSL libraries compatible with your target architecture.
 For release builds, CI also publishes a separate Linux static-OpenSSL artifact.
@@ -150,7 +179,7 @@ native bool:REST_RemoveKey(routeId, const key[]);
 
 // Settings
 native bool:REST_SetConflict(routeId, mode);      // CONFLICT_RENAME/OVERWRITE/REJECT
-native bool:REST_SetCorruptAction(routeId, act);  // CORRUPT_DELETE/QUARANTINE/KEEP
+native bool:REST_SetCorruptAction(routeId, action);  // CORRUPT_DELETE/QUARANTINE/KEEP
 native bool:REST_SetRequireCRC32(routeId, bool:required);
 native bool:REST_RemoveRoute(routeId);
 
@@ -207,6 +236,10 @@ native REST_GetQueryInt(requestId, const name[], defaultValue = 0);
 // Headers
 native REST_GetHeader(requestId, const name[], output[], outputSize);
 ```
+
+Notes:
+- `REST_GetQuery*` reads query params from the full request target and falls back to parsed params.
+- `REST_GetHeader` lookups are case-insensitive (`X-Token` and `x-token` are equivalent).
 
 ---
 
@@ -325,6 +358,7 @@ native REST_Request(clientId, const path[], method, const callback[], const body
 native REST_RequestJSON(clientId, const path[], method, const callback[], jsonNodeId = -1, const headers[] = "");
 
 // Optional state polling
+native bool:REST_CancelRequest(requestId);
 native REST_GetRequestStatus(requestId);      // REQUEST_*
 native REST_GetRequestHttpStatus(requestId);
 native REST_GetRequestErrorCode(requestId);   // PAWNREST_ERR_*
@@ -343,6 +377,15 @@ public OnJsonResponse(requestId, httpStatus, nodeId)
 // transport/internal failures
 forward OnRequestFailure(requestId, errorCode, const errorMessage[], len);
 forward OnRequestFailureDetailed(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
+```
+
+---
+
+## Header Helper Stocks
+
+```pawn
+stock bool:REST_RequestHeaders(output[], outputSize, const key[], const value[]);
+stock bool:REST_RequestHeadersAppend(headers[], outputSize, const key[], const value[]);
 ```
 
 ---
@@ -472,6 +515,38 @@ curl -H "Authorization: Bearer upload-secret-key" http://localhost:8080/maps/fil
 curl -H "Authorization: Bearer upload-secret-key" \
      http://localhost:8080/maps/files/mymap.map -o mymap.map
 ```
+
+### File Route REST API Response Formats
+
+**GET {route}/files** — List files
+```json
+{
+  "success": true,
+  "count": 3,
+  "files": ["map1.map", "map2.json", "test.map"]
+}
+```
+
+**GET {route}/files/{name}/info** — File info
+```json
+{
+  "success": true,
+  "name": "map1.map",
+  "size": 12345,
+  "modified": 1712419200
+}
+```
+
+**DELETE {route}/files/{name}** — Delete file
+```json
+{
+  "success": true,
+  "deleted": "map1.map"
+}
+```
+
+**GET {route}/files/{name}** — Download file  
+Returns raw file content with appropriate `Content-Type` header.
 
 ---
 
