@@ -4,7 +4,7 @@ PawnREST uses a handle-based JSON node API. This model is designed for predictab
 
 ## Core Lifecycle
 
-1. Acquire a node handle (`RequestJson`, `JsonParse`, `JsonObject`, `JsonArray`, `JsonGetObject`, `JsonArrayObject`).
+1. Acquire a node handle (`GetRequestJsonNode`, `JsonParse`, `JsonObject`, `JsonArray`, `JsonGetNode`, `JsonArrayGetNode`).
 2. Read or mutate data.
 3. Serialize (`JsonStringify`) or respond (`RespondNode`).
 4. Release handles with `JsonCleanup` when no longer needed.
@@ -15,7 +15,7 @@ If a function fails, it usually returns `-1` (node id) or `false` (bool).
 
 | Operation | Ownership behavior |
 | --- | --- |
-| `RequestJson`, `JsonParse`, `JsonObject`, `JsonArray`, `JsonGetObject`, `JsonArrayObject` | Returns a handle you must `JsonCleanup` |
+| `GetRequestJsonNode`, `JsonParse`, `JsonObject`, `JsonArray`, `JsonGetNode`, `JsonArrayGetNode` | Returns a handle you must `JsonCleanup` |
 | `JsonSetObject`, `JsonArrayAppend` | Clones/copies the input node into target; source handle can still be cleaned up |
 | `JsonAppend(left, right)` | Consumes `left` and `right` handles internally and returns a new merged handle |
 
@@ -24,7 +24,7 @@ If a function fails, it usually returns `-1` (node id) or `false` (bool).
 ```pawn
 public API_CreateUser(requestId)
 {
-    new body = RequestJson(requestId);
+    new body = GetRequestJsonNode(requestId);
     if (body == -1)
     {
         RespondError(requestId, 400, "Invalid JSON");
@@ -105,10 +105,10 @@ JsonCleanup(merged);
 ## Access Child Nodes
 
 ```pawn
-new body = RequestJson(requestId);
+new body = GetRequestJsonNode(requestId);
 if (body == -1) return 1;
 
-new profile = JsonGetObject(body, "profile");
+new profile = JsonGetNode(body, "profile");
 if (profile != -1)
 {
     new nickname[24];
@@ -138,6 +138,6 @@ new bool:ok = JsonGetBool(nodeId, "ok", false);
 ## Practical Guidelines
 
 1. Always release handles returned by node-producing functions.
-2. Validate `RequestJson` and child-node lookups (`-1`) before reading.
+2. Validate `GetRequestJsonNode` and child-node lookups (`-1`) before reading.
 3. Prefer `RespondNode` for structured output and `RespondJSON` for simple static JSON.
 4. Keep JSON composition close to your endpoint logic to reduce ownership mistakes.

@@ -48,21 +48,21 @@ native REST_IsTLSEnabled();
 ## Inbound Upload Routes
 
 ```pawn
-native REST_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb);
-native bool:REST_AddKey(routeId, const key[]);
-native bool:REST_RemoveKey(routeId, const key[]);
-native bool:REST_SetConflict(routeId, mode);
-native bool:REST_SetCorruptAction(routeId, action);
-native bool:REST_SetRequireCRC32(routeId, bool:required);
-native bool:REST_RemoveRoute(routeId);
+native FILE_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb);
+native bool:FILE_AddAuthKey(routeId, const key[]);
+native bool:FILE_RemoveAuthKey(routeId, const key[]);
+native bool:FILE_SetConflict(routeId, mode);
+native bool:FILE_SetCorruptAction(routeId, action);
+native bool:FILE_SetRequireCRC32(routeId, bool:required);
+native bool:FILE_RemoveRoute(routeId);
 ```
 
 ## Custom REST API Routes
 
 ```pawn
-native REST_Route(method, const endpoint[], const callback[]);
+native REST_RegisterAPIRoute(method, const endpoint[], const callback[]);
 native bool:REST_RemoveAPIRoute(routeId);
-native bool:REST_SetRouteAuth(routeId, const key[]);
+native bool:REST_SetRouteAuthKey(routeId, const key[]);
 ```
 
 ## REST Request Data Access
@@ -91,7 +91,7 @@ Behavior notes:
 
 ```pawn
 native JsonParse(const json[]);
-native RequestJson(requestId);
+native GetRequestJsonNode(requestId);
 native JsonNodeType(nodeId);
 native JsonStringify(nodeId, output[], outputSize);
 native bool:JsonCleanup(nodeId);
@@ -120,7 +120,7 @@ native bool:JsonSetFloat(objectNodeId, const key[], Float:value);
 native bool:JsonSetBool(objectNodeId, const key[], bool:value);
 native bool:JsonSetNull(objectNodeId, const key[]);
 native bool:JsonHas(objectNodeId, const key[]);
-native JsonGetObject(objectNodeId, const key[]);
+native JsonGetNode(objectNodeId, const key[]);
 native JsonGetString(objectNodeId, const key[], output[], outputSize);
 native JsonGetInt(objectNodeId, const key[], defaultValue = 0);
 native Float:JsonGetFloat(objectNodeId, const key[], Float:defaultValue = 0.0);
@@ -131,7 +131,7 @@ native bool:JsonGetBool(objectNodeId, const key[], bool:defaultValue = false);
 
 ```pawn
 native JsonArrayLength(arrayNodeId);
-native JsonArrayObject(arrayNodeId, index);
+native JsonArrayGetNode(arrayNodeId, index);
 native bool:JsonArrayAppend(arrayNodeId, valueNodeId);
 native bool:JsonArrayAppendString(arrayNodeId, const value[]);
 native bool:JsonArrayAppendInt(arrayNodeId, value);
@@ -153,27 +153,27 @@ native bool:SetResponseHeader(requestId, const name[], const value[]);
 ## File Route REST Permissions and File Ops
 
 ```pawn
-native bool:REST_AllowList(routeId, bool:allow);
-native bool:REST_AllowDownload(routeId, bool:allow);
-native bool:REST_AllowDelete(routeId, bool:allow);
-native bool:REST_AllowInfo(routeId, bool:allow);
+native bool:FILE_AllowList(routeId, bool:allow);
+native bool:FILE_AllowDownload(routeId, bool:allow);
+native bool:FILE_AllowDelete(routeId, bool:allow);
+native bool:FILE_AllowInfo(routeId, bool:allow);
 
-native REST_GetFileCount(routeId);
-native REST_GetFileName(routeId, index, output[], outputSize);
-native bool:REST_DeleteFile(routeId, const filename[]);
-native REST_GetFileSize(routeId, const filename[]);
+native FILE_GetCount(routeId);
+native FILE_GetName(routeId, index, output[], outputSize);
+native bool:FILE_Delete(routeId, const filename[]);
+native FILE_GetSize(routeId, const filename[]);
 ```
 
 ### File Route REST Endpoints
 
-When enabled via `REST_Allow*`, the following HTTP endpoints are available:
+When enabled via `FILE_Allow*`, the following HTTP endpoints are available:
 
 | Endpoint | Permission | Description |
 |----------|------------|-------------|
-| `GET {route}/files` | `REST_AllowList` | List all files |
-| `GET {route}/files/{name}` | `REST_AllowDownload` | Download file |
-| `GET {route}/files/{name}/info` | `REST_AllowInfo` | File metadata |
-| `DELETE {route}/files/{name}` | `REST_AllowDelete` | Delete file |
+| `GET {route}/files` | `FILE_AllowList` | List all files |
+| `GET {route}/files/{name}` | `FILE_AllowDownload` | Download file |
+| `GET {route}/files/{name}/info` | `FILE_AllowInfo` | File metadata |
+| `DELETE {route}/files/{name}` | `FILE_AllowDelete` | Delete file |
 
 ### Response Formats
 
@@ -197,7 +197,7 @@ When enabled via `REST_Allow*`, the following HTTP endpoints are available:
 ## Outgoing Upload API
 
 ```pawn
-native REST_UploadFile(
+native FILE_Upload(
     const url[],
     const filepath[],
     const filename[] = "",
@@ -208,12 +208,12 @@ native REST_UploadFile(
     bool:verifyTls = true
 );
 
-native REST_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
-native bool:REST_RemoveUploadClient(clientId);
-native bool:REST_SetUploadClientHeader(clientId, const name[], const value[]);
-native bool:REST_RemoveUploadClientHeader(clientId, const name[]);
+native FILE_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
+native bool:FILE_RemoveUploadClient(clientId);
+native bool:FILE_SetUploadClientHeader(clientId, const name[], const value[]);
+native bool:FILE_RemoveUploadClientHeader(clientId, const name[]);
 
-native REST_UploadFileWithClient(
+native FILE_UploadWithClient(
     clientId,
     const path[],
     const filepath[],
@@ -224,19 +224,19 @@ native REST_UploadFileWithClient(
     mode = UPLOAD_MODE_MULTIPART
 );
 
-native bool:REST_CancelUpload(uploadId);
-native REST_GetUploadStatus(uploadId);
-native REST_GetUploadProgress(uploadId);
-native REST_GetUploadResponse(uploadId, output[], outputSize);
-native REST_GetUploadErrorCode(uploadId);
-native REST_GetUploadErrorType(uploadId, output[], outputSize);
-native REST_GetUploadHttpStatus(uploadId);
+native bool:FILE_CancelUpload(uploadId);
+native FILE_GetUploadStatus(uploadId);
+native FILE_GetUploadProgress(uploadId);
+native FILE_GetUploadResponse(uploadId, output[], outputSize);
+native FILE_GetUploadErrorCode(uploadId);
+native FILE_GetUploadErrorType(uploadId, output[], outputSize);
+native FILE_GetUploadHttpStatus(uploadId);
 ```
 
 ## Outbound HTTP Request API
 
 ```pawn
-native REST_RequestsClient(const endpoint[], const defaultHeaders[] = "", bool:verifyTls = true);
+native REST_CreateRequestClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
 native bool:REST_RemoveRequestsClient(clientId);
 native bool:REST_SetRequestsClientHeader(clientId, const name[], const value[]);
 native bool:REST_RemoveRequestsClientHeader(clientId, const name[]);
@@ -282,9 +282,9 @@ native bool:REST_IsWebSocketOpen(socketId);
 ## CRC32 Utilities
 
 ```pawn
-native REST_VerifyCRC32(const filepath[], const expectedCrc[]);
-native REST_GetFileCRC32(const filepath[], output[], outputSize);
-native REST_CompareFiles(const path1[], const path2[]);
+native FILE_VerifyCRC32(const filepath[], const expectedCrc[]);
+native FILE_GetCRC32(const filepath[], output[], outputSize);
+native FILE_Compare(const path1[], const path2[]);
 ```
 
 ## Header Helper Stocks

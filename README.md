@@ -35,7 +35,7 @@ Ready-to-copy Pawn scripts are available in [`example/`](./example/):
 - **File Download API** - Serve files via HTTP GET
 - **Outgoing Uploads** - Upload files to external servers
 - **Upload Clients** - Reuse base URL and default headers for outbound uploads
-- **Outbound HTTP Requests** - `REST_RequestsClient` with `REST_Request` / `REST_RequestJSON`
+- **Outbound HTTP Requests** - `REST_CreateRequestClient` with `REST_Request` / `REST_RequestJSON`
 - **WebSocket Clients** - Text and JSON websocket clients (`ws://` and optional `wss://`)
 - **REST API Framework** - Create custom HTTP endpoints (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)
 - **Robust Request Accessors** - Query parsing from full URL target and case-insensitive header lookups
@@ -54,7 +54,7 @@ Ready-to-copy Pawn scripts are available in [`example/`](./example/):
 3. Copy `PawnREST.inc` to your Pawn compiler includes directory
 4. Add `#include <PawnREST>` to your script
 
-The function prefix is `REST_*` (for example `REST_Start`, `REST_Route`, `REST_RegisterRoute`).
+Public API uses two prefixes: `REST_*` for HTTP/core features and `FILE_*` for file/upload features.
 
 ### Linux Architecture Matching (Important)
 
@@ -104,16 +104,16 @@ public OnGameModeInit()
     REST_Start(8080);
     
     // === FILE UPLOAD ROUTE ===
-    g_MapRoute = REST_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
-    REST_AddKey(g_MapRoute, "upload-secret-key");
+    g_MapRoute = FILE_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
+    FILE_AddAuthKey(g_MapRoute, "upload-secret-key");
     
     // Enable REST API for files
-    REST_AllowList(g_MapRoute, true);
-    REST_AllowDownload(g_MapRoute, true);
+    FILE_AllowList(g_MapRoute, true);
+    FILE_AllowDownload(g_MapRoute, true);
     
     // === CUSTOM REST API ===
-    g_ApiPlayers = REST_Route(HTTP_METHOD_GET, "/api/players", "OnGetPlayers");
-    REST_SetRouteAuth(g_ApiPlayers, "api-secret-key");
+    g_ApiPlayers = REST_RegisterAPIRoute(HTTP_METHOD_GET, "/api/players", "OnGetPlayers");
+    REST_SetRouteAuthKey(g_ApiPlayers, "api-secret-key");
     
     return 1;
 }
@@ -129,7 +129,7 @@ public OnGetPlayers(requestId)
     return 1;
 }
 
-public OnFileUploaded(uploadId, routeId, const endpoint[], const filename[], 
+public OnIncomingUploadCompleted(uploadId, routeId, const endpoint[], const filename[], 
                       const filepath[], const crc32[], crcMatched)
 {
     printf("[PawnREST] File uploaded: %s", filename);
@@ -171,29 +171,29 @@ native REST_IsTLSEnabled();
 
 ```pawn
 // Register upload endpoint
-native REST_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb);
+native FILE_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb);
 
 // Authorization
-native bool:REST_AddKey(routeId, const key[]);
-native bool:REST_RemoveKey(routeId, const key[]);
+native bool:FILE_AddAuthKey(routeId, const key[]);
+native bool:FILE_RemoveAuthKey(routeId, const key[]);
 
 // Settings
-native bool:REST_SetConflict(routeId, mode);      // CONFLICT_RENAME/OVERWRITE/REJECT
-native bool:REST_SetCorruptAction(routeId, action);  // CORRUPT_DELETE/QUARANTINE/KEEP
-native bool:REST_SetRequireCRC32(routeId, bool:required);
-native bool:REST_RemoveRoute(routeId);
+native bool:FILE_SetConflict(routeId, mode);      // CONFLICT_RENAME/OVERWRITE/REJECT
+native bool:FILE_SetCorruptAction(routeId, action);  // CORRUPT_DELETE/QUARANTINE/KEEP
+native bool:FILE_SetRequireCRC32(routeId, bool:required);
+native bool:FILE_RemoveRoute(routeId);
 
 // REST API permissions for file routes
-native bool:REST_AllowList(routeId, bool:allow);     // GET {route}/files
-native bool:REST_AllowDownload(routeId, bool:allow); // GET {route}/files/{name}
-native bool:REST_AllowDelete(routeId, bool:allow);   // DELETE {route}/files/{name}
-native bool:REST_AllowInfo(routeId, bool:allow);     // GET {route}/files/{name}/info
+native bool:FILE_AllowList(routeId, bool:allow);     // GET {route}/files
+native bool:FILE_AllowDownload(routeId, bool:allow); // GET {route}/files/{name}
+native bool:FILE_AllowDelete(routeId, bool:allow);   // DELETE {route}/files/{name}
+native bool:FILE_AllowInfo(routeId, bool:allow);     // GET {route}/files/{name}/info
 
 // File operations
-native REST_GetFileCount(routeId);
-native REST_GetFileName(routeId, index, output[], outputSize);
-native bool:REST_DeleteFile(routeId, const filename[]);
-native REST_GetFileSize(routeId, const filename[]);
+native FILE_GetCount(routeId);
+native FILE_GetName(routeId, index, output[], outputSize);
+native bool:FILE_Delete(routeId, const filename[]);
+native FILE_GetSize(routeId, const filename[]);
 ```
 
 ---
@@ -202,15 +202,15 @@ native REST_GetFileSize(routeId, const filename[]);
 
 ```pawn
 // Register custom endpoint
-native REST_Route(method, const endpoint[], const callback[]);
+native REST_RegisterAPIRoute(method, const endpoint[], const callback[]);
 native bool:REST_RemoveAPIRoute(routeId);
-native bool:REST_SetRouteAuth(routeId, const key[]);
+native bool:REST_SetRouteAuthKey(routeId, const key[]);
 
 // Examples:
-REST_Route(HTTP_METHOD_GET, "/api/server", "OnGetServer");
-REST_Route(HTTP_METHOD_POST, "/api/ban", "OnPostBan");
-REST_Route(HTTP_METHOD_GET, "/api/player/{id}", "OnGetPlayer");  // URL params
-REST_Route(HTTP_METHOD_DELETE, "/api/vehicle/{id}", "OnDeleteVehicle");
+REST_RegisterAPIRoute(HTTP_METHOD_GET, "/api/server", "OnGetServer");
+REST_RegisterAPIRoute(HTTP_METHOD_POST, "/api/ban", "OnPostBan");
+REST_RegisterAPIRoute(HTTP_METHOD_GET, "/api/player/{id}", "OnGetPlayer");  // URL params
+REST_RegisterAPIRoute(HTTP_METHOD_DELETE, "/api/vehicle/{id}", "OnDeleteVehicle");
 ```
 
 ---
@@ -247,7 +247,7 @@ Notes:
 
 ```pawn
 // Parse JSON
-native RequestJson(requestId);
+native GetRequestJsonNode(requestId);
 native JsonParse(const json[]);
 native JsonNodeType(nodeId);                          // JSON_NODE_*
 native JsonStringify(nodeId, output[], outputSize);
@@ -271,7 +271,7 @@ native bool:JsonSetFloat(objectNodeId, const key[], Float:value);
 native bool:JsonSetBool(objectNodeId, const key[], bool:value);
 native bool:JsonSetNull(objectNodeId, const key[]);
 native bool:JsonHas(objectNodeId, const key[]);
-native JsonGetObject(objectNodeId, const key[]);
+native JsonGetNode(objectNodeId, const key[]);
 native JsonGetString(objectNodeId, const key[], output[], outputSize);
 native JsonGetInt(objectNodeId, const key[], defaultValue = 0);
 native Float:JsonGetFloat(objectNodeId, const key[], Float:defaultValue = 0.0);
@@ -279,7 +279,7 @@ native bool:JsonGetBool(objectNodeId, const key[], bool:defaultValue = false);
 
 // Array operations
 native JsonArrayLength(arrayNodeId);
-native JsonArrayObject(arrayNodeId, index);
+native JsonArrayGetNode(arrayNodeId, index);
 native bool:JsonArrayAppend(arrayNodeId, valueNodeId);
 native bool:JsonArrayAppendString(arrayNodeId, const value[]);
 native bool:JsonArrayAppendInt(arrayNodeId, value);
@@ -315,7 +315,7 @@ native bool:SetResponseHeader(requestId, const name[], const value[]);
 
 ```pawn
 // Upload file to external server
-native REST_UploadFile(
+native FILE_Upload(
     const url[],
     const filepath[],
     const filename[] = "",
@@ -327,19 +327,19 @@ native REST_UploadFile(
 );
 
 // Reusable upload clients
-native REST_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
-native bool:REST_RemoveUploadClient(clientId);
-native bool:REST_SetUploadClientHeader(clientId, const name[], const value[]);
-native bool:REST_RemoveUploadClientHeader(clientId, const name[]);
-native REST_UploadFileWithClient(clientId, const path[], const filepath[], const filename[] = "", const authKey[] = "", const customHeaders[] = "", calculateCrc32 = 1, mode = UPLOAD_MODE_MULTIPART);
+native FILE_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
+native bool:FILE_RemoveUploadClient(clientId);
+native bool:FILE_SetUploadClientHeader(clientId, const name[], const value[]);
+native bool:FILE_RemoveUploadClientHeader(clientId, const name[]);
+native FILE_UploadWithClient(clientId, const path[], const filepath[], const filename[] = "", const authKey[] = "", const customHeaders[] = "", calculateCrc32 = 1, mode = UPLOAD_MODE_MULTIPART);
 
-native bool:REST_CancelUpload(uploadId);
-native REST_GetUploadStatus(uploadId);
-native REST_GetUploadProgress(uploadId);
-native REST_GetUploadResponse(uploadId, output[], outputSize);
-native REST_GetUploadErrorCode(uploadId);
-native REST_GetUploadErrorType(uploadId, output[], outputSize);
-native REST_GetUploadHttpStatus(uploadId);
+native bool:FILE_CancelUpload(uploadId);
+native FILE_GetUploadStatus(uploadId);
+native FILE_GetUploadProgress(uploadId);
+native FILE_GetUploadResponse(uploadId, output[], outputSize);
+native FILE_GetUploadErrorCode(uploadId);
+native FILE_GetUploadErrorType(uploadId, output[], outputSize);
+native FILE_GetUploadHttpStatus(uploadId);
 ```
 
 ---
@@ -348,7 +348,7 @@ native REST_GetUploadHttpStatus(uploadId);
 
 ```pawn
 // Reusable HTTP client
-native REST_RequestsClient(const endpoint[], const defaultHeaders[] = "", bool:verifyTls = true);
+native REST_CreateRequestClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
 native bool:REST_RemoveRequestsClient(clientId);
 native bool:REST_SetRequestsClientHeader(clientId, const name[], const value[]);
 native bool:REST_RemoveRequestsClientHeader(clientId, const name[]);
@@ -375,8 +375,7 @@ public OnTextResponse(requestId, httpStatus, const data[], dataLen)
 public OnJsonResponse(requestId, httpStatus, nodeId)
 
 // transport/internal failures
-forward OnRequestFailure(requestId, errorCode, const errorMessage[], len);
-forward OnRequestFailureDetailed(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
+forward OnRequestFailure(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
 ```
 
 ---
@@ -418,9 +417,9 @@ forward OnWebSocketDisconnect(socketId, bool:isJson, status, const reason[], rea
 ## CRC32 Utilities
 
 ```pawn
-native REST_VerifyCRC32(const filepath[], const expectedCrc[]);
-native REST_GetFileCRC32(const filepath[], output[], outputSize);
-native REST_CompareFiles(const path1[], const path2[]);
+native FILE_VerifyCRC32(const filepath[], const expectedCrc[]);
+native FILE_GetCRC32(const filepath[], output[], outputSize);
+native FILE_Compare(const path1[], const path2[]);
 ```
 
 ---
@@ -429,25 +428,23 @@ native REST_CompareFiles(const path1[], const path2[]);
 
 ### File Upload (Incoming)
 ```pawn
-forward OnFileUploaded(uploadId, routeId, const endpoint[], const filename[], 
+forward OnIncomingUploadCompleted(uploadId, routeId, const endpoint[], const filename[], 
                        const filepath[], const crc32[], crcMatched);
-forward OnFileFailedUpload(uploadId, const reason[], const crc32[]);
-forward OnUploadProgress(uploadId, percent);
+forward OnIncomingUploadFailed(uploadId, const reason[], const crc32[]);
+forward OnIncomingUploadProgress(uploadId, percent);
 ```
 
 ### File Upload (Outgoing)
 ```pawn
-forward OnFileUploadStarted(uploadId);
-forward OnFileUploadProgress(uploadId, percent);
-forward OnFileUploadCompleted(uploadId, httpStatus, const responseBody[], const crc32[]);
-forward OnFileUploadFailed(uploadId, const errorMessage[]);
-forward OnFileUploadFailure(uploadId, errorCode, const errorType[], const errorMessage[], httpStatus);
+forward OnOutgoingUploadStarted(uploadId);
+forward OnOutgoingUploadProgress(uploadId, percent);
+forward OnOutgoingUploadCompleted(uploadId, httpStatus, const responseBody[], const crc32[]);
+forward OnOutgoingUploadFailed(uploadId, errorCode, const errorType[], const errorMessage[], httpStatus);
 ```
 
 ### Outbound Request / WebSocket
 ```pawn
-forward OnRequestFailure(requestId, errorCode, const errorMessage[], len);
-forward OnRequestFailureDetailed(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
+forward OnRequestFailure(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
 forward OnWebSocketDisconnect(socketId, bool:isJson, status, const reason[], reasonLen, errorCode);
 ```
 
@@ -563,17 +560,17 @@ public OnGameModeInit()
     REST_Start(8080);
     
     // File upload route
-    g_MapRoute = REST_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
-    REST_AddKey(g_MapRoute, "secret-key");
-    REST_AllowList(g_MapRoute, true);
-    REST_AllowDownload(g_MapRoute, true);
-    REST_AllowInfo(g_MapRoute, true);
+    g_MapRoute = FILE_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
+    FILE_AddAuthKey(g_MapRoute, "secret-key");
+    FILE_AllowList(g_MapRoute, true);
+    FILE_AllowDownload(g_MapRoute, true);
+    FILE_AllowInfo(g_MapRoute, true);
     
     // Custom API routes
-    REST_Route(HTTP_METHOD_GET, "/api/server", "API_GetServer");
-    REST_Route(HTTP_METHOD_GET, "/api/players", "API_GetPlayers");
-    REST_Route(HTTP_METHOD_POST, "/api/announce", "API_PostAnnounce");
-    REST_Route(HTTP_METHOD_GET, "/api/player/{id}", "API_GetPlayer");
+    REST_RegisterAPIRoute(HTTP_METHOD_GET, "/api/server", "API_GetServer");
+    REST_RegisterAPIRoute(HTTP_METHOD_GET, "/api/players", "API_GetPlayers");
+    REST_RegisterAPIRoute(HTTP_METHOD_POST, "/api/announce", "API_PostAnnounce");
+    REST_RegisterAPIRoute(HTTP_METHOD_GET, "/api/player/{id}", "API_GetPlayer");
     
     return 1;
 }
@@ -622,7 +619,7 @@ public API_GetPlayers(requestId)
 
 public API_PostAnnounce(requestId)
 {
-    new body = RequestJson(requestId);
+    new body = GetRequestJsonNode(requestId);
     if (body == -1)
     {
         RespondError(requestId, 400, "Invalid JSON body");
@@ -672,7 +669,7 @@ public API_GetPlayer(requestId)
     return 1;
 }
 
-public OnFileUploaded(uploadId, routeId, const endpoint[], const filename[], 
+public OnIncomingUploadCompleted(uploadId, routeId, const endpoint[], const filename[], 
                       const filepath[], const crc32[], crcMatched)
 {
     printf("[PawnREST] Uploaded: %s -> %s (CRC: %s)", filename, filepath, crc32);

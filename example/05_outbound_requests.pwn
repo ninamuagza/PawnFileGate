@@ -10,7 +10,7 @@ public OnGameModeInit()
     REST_RequestHeaders(headers, sizeof(headers), "Authorization", "Bearer api-token");
     REST_RequestHeadersAppend(headers, sizeof(headers), "X-Service", "game-server");
 
-    g_ApiClient = REST_RequestsClient("https://api.example.com", headers, true);
+    g_ApiClient = REST_CreateRequestClient("https://api.example.com", headers, true);
     REST_SetRequestsClientHeader(g_ApiClient, "User-Agent", "PawnREST/1.0");
 
     g_LastRequestId = REST_Request(g_ApiClient, "/status", HTTP_METHOD_GET, "OnStatusText");
@@ -69,13 +69,7 @@ public OnEventPosted(requestId, httpStatus, nodeId)
     return 1;
 }
 
-public OnRequestFailure(requestId, errorCode, const errorMessage[], len)
-{
-    printf("[RequestFailure] id=%d code=%d len=%d msg=%s", requestId, errorCode, len, errorMessage);
-    return 1;
-}
-
-public OnRequestFailureDetailed(requestId, errorCode, const errorType[], const errorMessage[], httpStatus)
+public OnRequestFailure(requestId, errorCode, const errorType[], const errorMessage[], httpStatus)
 {
     printf("[RequestFailureDetailed] id=%d code=%d type=%s http=%d msg=%s", requestId, errorCode, errorType, httpStatus, errorMessage);
     return 1;

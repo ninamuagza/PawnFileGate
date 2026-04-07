@@ -31,13 +31,13 @@ cmake --build build-32 --parallel
 ## 2. File route REST endpoints return `404`
 
 **Symptom**
-- `GET /route/files` returns `{"error":"endpoint not found"}` even though `REST_AllowList` was called.
+- `GET /route/files` returns `{"error":"endpoint not found"}` even though `FILE_AllowList` was called.
 
 **Cause (older versions)**
 - File ops endpoints were only registered at server startup, before routes existed.
 
 **Fix**
-- Update to the latest PawnREST build. File ops routes (`/files`, `/files/{name}`, etc.) are now registered dynamically when `REST_RegisterRoute` is called.
+- Update to the latest PawnREST build. File ops routes (`/files`, `/files/{name}`, etc.) are now registered dynamically when `FILE_RegisterRoute` is called.
 
 ## 3. Required values look empty even when sent
 

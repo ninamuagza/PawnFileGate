@@ -25,12 +25,12 @@ public OnGameModeInit()
 {
     REST_Start(8080);
 
-    g_HealthRoute = REST_Route(HTTP_METHOD_GET, "/api/health", "API_Health");
-    g_EchoRoute = REST_Route(HTTP_METHOD_POST, "/api/echo", "API_Echo");
-    g_HeadRoute = REST_Route(HTTP_METHOD_HEAD, "/api/ping", "API_HeadPing");
-    g_OptionsRoute = REST_Route(HTTP_METHOD_OPTIONS, "/api/ping", "API_OptionsPing");
+    g_HealthRoute = REST_RegisterAPIRoute(HTTP_METHOD_GET, "/api/health", "API_Health");
+    g_EchoRoute = REST_RegisterAPIRoute(HTTP_METHOD_POST, "/api/echo", "API_Echo");
+    g_HeadRoute = REST_RegisterAPIRoute(HTTP_METHOD_HEAD, "/api/ping", "API_HeadPing");
+    g_OptionsRoute = REST_RegisterAPIRoute(HTTP_METHOD_OPTIONS, "/api/ping", "API_OptionsPing");
 
-    REST_SetRouteAuth(g_EchoRoute, "api-secret");
+    REST_SetRouteAuthKey(g_EchoRoute, "api-secret");
     return 1;
 }
 

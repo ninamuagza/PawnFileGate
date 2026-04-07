@@ -214,7 +214,7 @@ SCRIPT_API(REST_RemoveAPIRoute, bool(int routeId))
     return c->RemoveApiRoute(routeId);
 }
 
-SCRIPT_API(REST_SetRouteAuth, bool(int routeId, const std::string& key))
+SCRIPT_API(REST_SetRouteAuthKey, bool(int routeId, const std::string& key))
 {
     auto c = GetComponent();
     if (!c) return false;

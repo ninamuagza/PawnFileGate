@@ -1509,7 +1509,7 @@ private:
             switch (ev.type) {
                 case UploadEvent::Type::Completed: {
                     std::string crcHex = CRC32::toHex(ev.crc32Checksum);
-                    CallPawnEvent("OnFileUploaded",
+                    CallPawnEvent("OnIncomingUploadCompleted",
                         ev.uploadId,
                         ev.routeId,
                         StringView(ev.endpoint),
@@ -1522,7 +1522,7 @@ private:
                 }
                 case UploadEvent::Type::Failed: {
                     std::string crcHex = CRC32::toHex(ev.crc32Checksum);
-                    CallPawnEvent("OnFileFailedUpload",
+                    CallPawnEvent("OnIncomingUploadFailed",
                         ev.uploadId,
                         StringView(ev.reason),
                         StringView(crcHex)
@@ -1530,7 +1530,7 @@ private:
                     break;
                 }
                 case UploadEvent::Type::Progress:
-                    CallPawnEvent("OnUploadProgress",
+                    CallPawnEvent("OnIncomingUploadProgress",
                         ev.uploadId,
                         ev.progressPct
                     );
@@ -1548,14 +1548,14 @@ private:
         for (const auto& ev : localOutgoing) {
             switch (ev.type) {
                 case OutgoingUploadEvent::Type::Started:
-                    CallPawnEvent("OnFileUploadStarted", ev.uploadId);
+                    CallPawnEvent("OnOutgoingUploadStarted", ev.uploadId);
                     break;
                 case OutgoingUploadEvent::Type::Progress:
-                    CallPawnEvent("OnFileUploadProgress", ev.uploadId, ev.progressPct);
+                    CallPawnEvent("OnOutgoingUploadProgress", ev.uploadId, ev.progressPct);
                     break;
                 case OutgoingUploadEvent::Type::Completed: {
                     std::string crcHex = CRC32::toHex(ev.crc32Checksum);
-                    CallPawnEvent("OnFileUploadCompleted",
+                    CallPawnEvent("OnOutgoingUploadCompleted",
                         ev.uploadId,
                         ev.httpStatus,
                         StringView(ev.responseBody),
@@ -1564,11 +1564,7 @@ private:
                     break;
                 }
                 case OutgoingUploadEvent::Type::Failed:
-                    CallPawnEvent("OnFileUploadFailed",
-                        ev.uploadId,
-                        StringView(ev.errorMessage)
-                    );
-                    CallPawnEvent("OnFileUploadFailure",
+                    CallPawnEvent("OnOutgoingUploadFailed",
                         ev.uploadId,
                         ev.errorCode,
                         StringView(ev.errorType),
@@ -1606,12 +1602,6 @@ private:
                 case OutgoingRequestEvent::Type::Failed:
                     CallPawnEvent(
                         "OnRequestFailure",
-                        ev.requestId,
-                        ev.errorCode,
-                        StringView(ev.errorMessage),
-                        static_cast<int>(ev.errorMessage.size()));
-                    CallPawnEvent(
-                        "OnRequestFailureDetailed",
                         ev.requestId,
                         ev.errorCode,
                         StringView(ev.errorType),

@@ -84,13 +84,13 @@ public OnGameModeInit()
 {
     REST_Start(8080);
 
-    g_AccountRoute = REST_Route(HTTP_METHOD_GET, "/api/account/{discord_id}", "API_GetAccountByPath");
-    g_AccountQueryRoute = REST_Route(HTTP_METHOD_GET, "/api/account/by-discord", "API_GetAccountByQuery");
-    g_RegisterRoute = REST_Route(HTTP_METHOD_POST, "/api/account/register", "API_RegisterAccount");
+    g_AccountRoute = REST_RegisterAPIRoute(HTTP_METHOD_GET, "/api/account/{discord_id}", "API_GetAccountByPath");
+    g_AccountQueryRoute = REST_RegisterAPIRoute(HTTP_METHOD_GET, "/api/account/by-discord", "API_GetAccountByQuery");
+    g_RegisterRoute = REST_RegisterAPIRoute(HTTP_METHOD_POST, "/api/account/register", "API_RegisterAccount");
 
-    REST_SetRouteAuth(g_AccountRoute, "bot-secret");
-    REST_SetRouteAuth(g_AccountQueryRoute, "bot-secret");
-    REST_SetRouteAuth(g_RegisterRoute, "bot-secret");
+    REST_SetRouteAuthKey(g_AccountRoute, "bot-secret");
+    REST_SetRouteAuthKey(g_AccountQueryRoute, "bot-secret");
+    REST_SetRouteAuthKey(g_RegisterRoute, "bot-secret");
     return 1;
 }
 
@@ -106,7 +106,7 @@ public API_GetAccountByQuery(requestId)
 
 public API_RegisterAccount(requestId)
 {
-    new body = RequestJson(requestId); // Optional body; query/header/path are also supported.
+    new body = GetRequestJsonNode(requestId); // Optional body; query/header/path are also supported.
 
     new discordId[32], discordName[64], username[24];
     new bool:hasDiscordId = GetRequestField(requestId, body, "discord_id", discordId, sizeof(discordId));

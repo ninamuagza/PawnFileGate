@@ -30,7 +30,7 @@ Official documentation for PawnREST: an open.mp/SA-MP component that provides in
 
 ## API Conventions
 
-1. Public native prefix is `REST_*`.
+1. Public native prefixes are `REST_*` (HTTP/core) and `FILE_*` (file/upload).
 2. JSON node API uses concise `Json*` and `Respond*` helpers.
 3. Outbound HTTP/websocket flows are asynchronous and callback-driven.
 4. Route authentication uses `Authorization: Bearer <token>`.
@@ -39,7 +39,7 @@ Official documentation for PawnREST: an open.mp/SA-MP component that provides in
 
 ## Architecture Summary
 
-1. **Inbound layer**: `REST_Start` + `REST_RegisterRoute` / `REST_Route`.
+1. **Inbound layer**: `REST_Start` + `FILE_RegisterRoute` / `REST_RegisterAPIRoute`.
 2. **Data layer**: request helpers (`REST_GetRequest*`) + node JSON API (`Json*`).
-3. **Outbound layer**: `REST_RequestsClient`, `REST_Request*`, `REST_WebSocket*`.
+3. **Outbound layer**: `REST_CreateRequestClient`, `REST_Request*`, `REST_WebSocket*`.
 4. **Integration layer**: callbacks for upload, request, and websocket events.

@@ -13,7 +13,7 @@ PawnREST uses callback-driven flow for upload events, outbound requests, and web
 ### Fired on successful inbound upload
 
 ```pawn
-forward OnFileUploaded(
+forward OnIncomingUploadCompleted(
     uploadId,
     routeId,
     const endpoint[],
@@ -27,26 +27,25 @@ forward OnFileUploaded(
 ### Fired on inbound upload failure
 
 ```pawn
-forward OnFileFailedUpload(uploadId, const reason[], const crc32[]);
+forward OnIncomingUploadFailed(uploadId, const reason[], const crc32[]);
 ```
 
 ### Fired during inbound upload progress
 
 ```pawn
-forward OnUploadProgress(uploadId, percent);
+forward OnIncomingUploadProgress(uploadId, percent);
 ```
 
 ## Outgoing Upload Callbacks
 
 ```pawn
-forward OnFileUploadStarted(uploadId);
-forward OnFileUploadProgress(uploadId, percent);
-forward OnFileUploadCompleted(uploadId, httpStatus, const responseBody[], const crc32[]);
-forward OnFileUploadFailed(uploadId, const errorMessage[]);
-forward OnFileUploadFailure(uploadId, errorCode, const errorType[], const errorMessage[], httpStatus);
+forward OnOutgoingUploadStarted(uploadId);
+forward OnOutgoingUploadProgress(uploadId, percent);
+forward OnOutgoingUploadCompleted(uploadId, httpStatus, const responseBody[], const crc32[]);
+forward OnOutgoingUploadFailed(uploadId, errorCode, const errorType[], const errorMessage[], httpStatus);
 ```
 
-`OnFileUploadFailure` is the structured variant with typed metadata (`PAWNREST_ERR_*`, error type string, and HTTP status when available).
+`OnOutgoingUploadFailureDetailed` is the structured variant with typed metadata (`PAWNREST_ERR_*`, error type string, and HTTP status when available).
 
 ## Outbound HTTP Request Callbacks
 
@@ -65,8 +64,7 @@ public YourJsonCallback(requestId, httpStatus, nodeId)
 ### Global failure callbacks
 
 ```pawn
-forward OnRequestFailure(requestId, errorCode, const errorMessage[], len);
-forward OnRequestFailureDetailed(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
+forward OnRequestFailure(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
 ```
 
 ## WebSocket Callbacks

@@ -180,7 +180,7 @@ native REST_IsTLSEnabled();
  * Registers an HTTP POST endpoint for receiving uploaded files.
  *
  * Example:
- *     REST_RegisterRoute("/map", "scriptfiles/maps/", ".map,.json", 25);
+ *     FILE_RegisterRoute("/map", "scriptfiles/maps/", ".map,.json", 25);
  *
  * @param endpoint    HTTP route path (example: "/map")
  * @param path        Destination directory on server
@@ -188,7 +188,7 @@ native REST_IsTLSEnabled();
  * @param maxSizeMb   Maximum allowed file size in MB
  * @return routeId, or -1 on failure
  */
-native REST_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb);
+native FILE_RegisterRoute(const endpoint[], const path[], const allowedExts[], maxSizeMb) = REST_RegisterRoute;
 
 /**
  * Requires "Authorization: Bearer <key>" for a specific route.
@@ -197,7 +197,7 @@ native REST_RegisterRoute(const endpoint[], const path[], const allowedExts[], m
  * @param key Authorization key
  * @return true on success
  */
-native bool:REST_AddKey(routeId, const key[]);
+native bool:FILE_AddAuthKey(routeId, const key[]) = REST_AddKey;
 
 /**
  * Removes a previously allowed authorization key from a route.
@@ -206,7 +206,7 @@ native bool:REST_AddKey(routeId, const key[]);
  * @param key Authorization key
  * @return true on success
  */
-native bool:REST_RemoveKey(routeId, const key[]);
+native bool:FILE_RemoveAuthKey(routeId, const key[]) = REST_RemoveKey;
 
 /**
  * Sets how filename conflicts should be handled for a route.
@@ -220,7 +220,7 @@ native bool:REST_RemoveKey(routeId, const key[]);
  * @param mode Conflict mode
  * @return true on success
  */
-native bool:REST_SetConflict(routeId, mode);
+native bool:FILE_SetConflict(routeId, mode) = REST_SetConflict;
 
 /**
  * Sets what to do if uploaded file CRC validation fails.
@@ -234,7 +234,7 @@ native bool:REST_SetConflict(routeId, mode);
  * @param action Corrupt file action
  * @return true on success
  */
-native bool:REST_SetCorruptAction(routeId, action);
+native bool:FILE_SetCorruptAction(routeId, action) = REST_SetCorruptAction;
 
 /**
  * Requires incoming uploads on this route to include X-File-CRC32 header.
@@ -243,7 +243,7 @@ native bool:REST_SetCorruptAction(routeId, action);
  * @param required true to require CRC32, false to disable requirement
  * @return true on success
  */
-native bool:REST_SetRequireCRC32(routeId, bool:required);
+native bool:FILE_SetRequireCRC32(routeId, bool:required) = REST_SetRequireCRC32;
 
 /**
  * Removes an existing upload route.
@@ -251,7 +251,7 @@ native bool:REST_SetRequireCRC32(routeId, bool:required);
  * @param routeId Route ID
  * @return true on success
  */
-native bool:REST_RemoveRoute(routeId);
+native bool:FILE_RemoveRoute(routeId) = REST_RemoveRoute;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // REST API Routes
@@ -261,16 +261,16 @@ native bool:REST_RemoveRoute(routeId);
  * Registers a custom REST API endpoint.
  *
  * Example:
- *     REST_Route(HTTP_METHOD_GET, "/api/players", "OnGetPlayers");
- *     REST_Route(HTTP_METHOD_POST, "/api/ban", "OnPostBan");
- *     REST_Route(HTTP_METHOD_GET, "/api/player/{id}", "OnGetPlayer");
+ *     REST_RegisterAPIRoute(HTTP_METHOD_GET, "/api/players", "OnGetPlayers");
+ *     REST_RegisterAPIRoute(HTTP_METHOD_POST, "/api/ban", "OnPostBan");
+ *     REST_RegisterAPIRoute(HTTP_METHOD_GET, "/api/player/{id}", "OnGetPlayer");
  *
  * @param method HTTP method (HTTP_METHOD_GET, HTTP_METHOD_POST, HTTP_METHOD_PUT, HTTP_METHOD_PATCH, HTTP_METHOD_DELETE, HTTP_METHOD_HEAD, HTTP_METHOD_OPTIONS)
  * @param endpoint Route path (supports {param} placeholders)
  * @param callback Pawn callback function name
  * @return routeId, or -1 on failure
  */
-native REST_Route(method, const endpoint[], const callback[]);
+native REST_RegisterAPIRoute(method, const endpoint[], const callback[]) = REST_Route;
 
 /**
  * Removes a custom API route.
@@ -288,7 +288,7 @@ native bool:REST_RemoveAPIRoute(routeId);
  * @param key Authorization key
  * @return true on success
  */
-native bool:REST_SetRouteAuth(routeId, const key[]);
+native bool:REST_SetRouteAuthKey(routeId, const key[]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // REST API - Request Data
@@ -400,7 +400,7 @@ native REST_GetHeader(requestId, const name[], output[], outputSize);
  * Parse raw JSON or request JSON body into node tree handles.
  */
 native JsonParse(const json[]) = REST_JsonParseNode;
-native RequestJson(requestId) = REST_RequestJsonNode;
+native GetRequestJsonNode(requestId) = REST_RequestJsonNode;
 
 /**
  * Node metadata and lifecycle.
@@ -431,7 +431,7 @@ native bool:JsonSetFloat(objectNodeId, const key[], Float:value) = REST_NodeSetF
 native bool:JsonSetBool(objectNodeId, const key[], bool:value) = REST_NodeSetBool;
 native bool:JsonSetNull(objectNodeId, const key[]) = REST_NodeSetNull;
 native bool:JsonHas(objectNodeId, const key[]) = REST_NodeHas;
-native JsonGetObject(objectNodeId, const key[]) = REST_NodeGet;
+native JsonGetNode(objectNodeId, const key[]) = REST_NodeGet;
 native JsonGetString(objectNodeId, const key[], output[], outputSize) = REST_NodeGetString;
 native JsonGetInt(objectNodeId, const key[], defaultValue = 0) = REST_NodeGetInt;
 native Float:JsonGetFloat(objectNodeId, const key[], Float:defaultValue = 0.0) = REST_NodeGetFloat;
@@ -441,7 +441,7 @@ native bool:JsonGetBool(objectNodeId, const key[], bool:defaultValue = false) = 
  * Array operations.
  */
 native JsonArrayLength(arrayNodeId) = REST_NodeArrayLength;
-native JsonArrayObject(arrayNodeId, index) = REST_NodeArrayGet;
+native JsonArrayGetNode(arrayNodeId, index) = REST_NodeArrayGet;
 native bool:JsonArrayAppend(arrayNodeId, valueNodeId) = REST_NodeArrayPush;
 native bool:JsonArrayAppendString(arrayNodeId, const value[]) = REST_NodeArrayPushString;
 native bool:JsonArrayAppendInt(arrayNodeId, value) = REST_NodeArrayPushInt;
@@ -471,7 +471,7 @@ native bool:SetResponseHeader(requestId, const name[], const value[]) = REST_Set
  * @param allow true to allow, false to deny
  * @return true on success
  */
-native bool:REST_AllowList(routeId, bool:allow);
+native bool:FILE_AllowList(routeId, bool:allow) = REST_AllowList;
 
 /**
  * Allow downloading files via REST API.
@@ -481,7 +481,7 @@ native bool:REST_AllowList(routeId, bool:allow);
  * @param allow true to allow, false to deny
  * @return true on success
  */
-native bool:REST_AllowDownload(routeId, bool:allow);
+native bool:FILE_AllowDownload(routeId, bool:allow) = REST_AllowDownload;
 
 /**
  * Allow deleting files via REST API.
@@ -491,7 +491,7 @@ native bool:REST_AllowDownload(routeId, bool:allow);
  * @param allow true to allow, false to deny
  * @return true on success
  */
-native bool:REST_AllowDelete(routeId, bool:allow);
+native bool:FILE_AllowDelete(routeId, bool:allow) = REST_AllowDelete;
 
 /**
  * Allow getting file info via REST API.
@@ -501,7 +501,7 @@ native bool:REST_AllowDelete(routeId, bool:allow);
  * @param allow true to allow, false to deny
  * @return true on success
  */
-native bool:REST_AllowInfo(routeId, bool:allow);
+native bool:FILE_AllowInfo(routeId, bool:allow) = REST_AllowInfo;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // File Operations (Pawn-side)
@@ -513,7 +513,7 @@ native bool:REST_AllowInfo(routeId, bool:allow);
  * @param routeId Route ID
  * @return Number of files, or -1 on error
  */
-native REST_GetFileCount(routeId);
+native FILE_GetCount(routeId) = REST_GetFileCount;
 
 /**
  * Gets a filename by index from a route's directory.
@@ -524,7 +524,7 @@ native REST_GetFileCount(routeId);
  * @param outputSize Buffer size
  * @return 1 on success, 0 if not found
  */
-native REST_GetFileName(routeId, index, output[], outputSize);
+native FILE_GetName(routeId, index, output[], outputSize) = REST_GetFileName;
 
 /**
  * Deletes a file from a route's directory.
@@ -533,7 +533,7 @@ native REST_GetFileName(routeId, index, output[], outputSize);
  * @param filename Filename to delete
  * @return true on success
  */
-native bool:REST_DeleteFile(routeId, const filename[]);
+native bool:FILE_Delete(routeId, const filename[]) = REST_DeleteFile;
 
 /**
  * Gets the size of a file in a route's directory.
@@ -542,7 +542,7 @@ native bool:REST_DeleteFile(routeId, const filename[]);
  * @param filename Filename
  * @return File size in bytes, or 0 if not found
  */
-native REST_GetFileSize(routeId, const filename[]);
+native FILE_GetSize(routeId, const filename[]) = REST_GetFileSize;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Outgoing Upload Client
@@ -562,7 +562,7 @@ native REST_GetFileSize(routeId, const filename[]);
  * @param verifyTls      true to verify TLS certificate for https:// targets
  * @return uploadId, or -1 on failure
  */
-native REST_UploadFile(
+native FILE_Upload(
     const url[],
     const filepath[],
     const filename[] = "",
@@ -571,7 +571,7 @@ native REST_UploadFile(
     calculateCrc32 = 1,
     mode = UPLOAD_MODE_MULTIPART,
     bool:verifyTls = true
-);
+) = REST_UploadFile;
 
 /**
  * Creates a reusable upload client (base URL + default headers).
@@ -581,7 +581,7 @@ native REST_UploadFile(
  * @param verifyTls true to verify remote TLS certificate by default
  * @return clientId, or -1 on failure
  */
-native REST_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true);
+native FILE_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true) = REST_CreateUploadClient;
 
 /**
  * Removes an upload client.
@@ -589,7 +589,7 @@ native REST_CreateUploadClient(const baseUrl[], const defaultHeaders[] = "", boo
  * @param clientId Upload client ID
  * @return true on success
  */
-native bool:REST_RemoveUploadClient(clientId);
+native bool:FILE_RemoveUploadClient(clientId) = REST_RemoveUploadClient;
 
 /**
  * Sets or overwrites a default header on an upload client.
@@ -599,7 +599,7 @@ native bool:REST_RemoveUploadClient(clientId);
  * @param value Header value
  * @return true on success
  */
-native bool:REST_SetUploadClientHeader(clientId, const name[], const value[]);
+native bool:FILE_SetUploadClientHeader(clientId, const name[], const value[]) = REST_SetUploadClientHeader;
 
 /**
  * Removes a default header from an upload client.
@@ -608,7 +608,7 @@ native bool:REST_SetUploadClientHeader(clientId, const name[], const value[]);
  * @param name Header name
  * @return true on success
  */
-native bool:REST_RemoveUploadClientHeader(clientId, const name[]);
+native bool:FILE_RemoveUploadClientHeader(clientId, const name[]) = REST_RemoveUploadClientHeader;
 
 /**
  * Uploads a file using a pre-configured upload client.
@@ -623,7 +623,7 @@ native bool:REST_RemoveUploadClientHeader(clientId, const name[]);
  * @param mode UPLOAD_MODE_MULTIPART or UPLOAD_MODE_RAW
  * @return uploadId, or -1 on failure
  */
-native REST_UploadFileWithClient(
+native FILE_UploadWithClient(
     clientId,
     const path[],
     const filepath[],
@@ -632,7 +632,7 @@ native REST_UploadFileWithClient(
     const customHeaders[] = "",
     calculateCrc32 = 1,
     mode = UPLOAD_MODE_MULTIPART
-);
+) = REST_UploadFileWithClient;
 
 /**
  * Cancels a pending or active outgoing upload.
@@ -640,7 +640,7 @@ native REST_UploadFileWithClient(
  * @param uploadId Upload ID
  * @return true on success
  */
-native bool:REST_CancelUpload(uploadId);
+native bool:FILE_CancelUpload(uploadId) = REST_CancelUpload;
 
 /**
  * Returns the current status of an outgoing upload.
@@ -655,7 +655,7 @@ native bool:REST_CancelUpload(uploadId);
  * @param uploadId Upload ID
  * @return Upload status code
  */
-native REST_GetUploadStatus(uploadId);
+native FILE_GetUploadStatus(uploadId) = REST_GetUploadStatus;
 
 /**
  * Returns the current progress percentage of an outgoing upload.
@@ -663,7 +663,7 @@ native REST_GetUploadStatus(uploadId);
  * @param uploadId Upload ID
  * @return Progress from 0 to 100
  */
-native REST_GetUploadProgress(uploadId);
+native FILE_GetUploadProgress(uploadId) = REST_GetUploadProgress;
 
 /**
  * Returns the response body of a completed outgoing upload.
@@ -676,7 +676,7 @@ native REST_GetUploadProgress(uploadId);
  * @param outputSize Buffer size
  * @return 1 if upload completed successfully, 0 otherwise
  */
-native REST_GetUploadResponse(uploadId, output[], outputSize);
+native FILE_GetUploadResponse(uploadId, output[], outputSize) = REST_GetUploadResponse;
 
 /**
  * Returns structured error code for an outgoing upload.
@@ -684,7 +684,7 @@ native REST_GetUploadResponse(uploadId, output[], outputSize);
  * @param uploadId Upload ID
  * @return PAWNREST_ERR_* code, or -1 if upload not found
  */
-native REST_GetUploadErrorCode(uploadId);
+native FILE_GetUploadErrorCode(uploadId) = REST_GetUploadErrorCode;
 
 /**
  * Returns structured error type string for an outgoing upload.
@@ -694,7 +694,7 @@ native REST_GetUploadErrorCode(uploadId);
  * @param outputSize Buffer size
  * @return 1 if available, 0 otherwise
  */
-native REST_GetUploadErrorType(uploadId, output[], outputSize);
+native FILE_GetUploadErrorType(uploadId, output[], outputSize) = REST_GetUploadErrorType;
 
 /**
  * Returns last HTTP status code for an outgoing upload.
@@ -702,7 +702,7 @@ native REST_GetUploadErrorType(uploadId, output[], outputSize);
  * @param uploadId Upload ID
  * @return HTTP status or 0 if unavailable
  */
-native REST_GetUploadHttpStatus(uploadId);
+native FILE_GetUploadHttpStatus(uploadId) = REST_GetUploadHttpStatus;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Outbound Requests
@@ -711,7 +711,7 @@ native REST_GetUploadHttpStatus(uploadId);
 /**
  * Creates a reusable outbound HTTP client (base URL + default headers).
  */
-native REST_RequestsClient(const endpoint[], const defaultHeaders[] = "", bool:verifyTls = true);
+native REST_CreateRequestClient(const baseUrl[], const defaultHeaders[] = "", bool:verifyTls = true) = REST_RequestsClient;
 native bool:REST_RemoveRequestsClient(clientId);
 native bool:REST_SetRequestsClientHeader(clientId, const name[], const value[]);
 native bool:REST_RemoveRequestsClientHeader(clientId, const name[]);
@@ -784,7 +784,7 @@ native bool:REST_IsWebSocketOpen(socketId);
  * @param expectedCrc Expected CRC32 string
  * @return 1 if match, 0 if mismatch, -1 on error
  */
-native REST_VerifyCRC32(const filepath[], const expectedCrc[]);
+native FILE_VerifyCRC32(const filepath[], const expectedCrc[]) = REST_VerifyCRC32;
 
 /**
  * Calculates the CRC32 checksum of a local file.
@@ -794,7 +794,7 @@ native REST_VerifyCRC32(const filepath[], const expectedCrc[]);
  * @param outputSize Buffer size
  * @return 1 on success, 0 on failure
  */
-native REST_GetFileCRC32(const filepath[], output[], outputSize);
+native FILE_GetCRC32(const filepath[], output[], outputSize) = REST_GetFileCRC32;
 
 /**
  * Compares two local files using CRC32.
@@ -803,7 +803,7 @@ native REST_GetFileCRC32(const filepath[], output[], outputSize);
  * @param path2 Second file path
  * @return 1 if identical, 0 if different, -1 on error
  */
-native REST_CompareFiles(const path1[], const path2[]);
+native FILE_Compare(const path1[], const path2[]) = REST_CompareFiles;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Incoming Callbacks
@@ -820,7 +820,7 @@ native REST_CompareFiles(const path1[], const path2[]);
  * @param crc32 Calculated CRC32 of uploaded file
  * @param crcMatched 1 if CRC matched expected value, 0 otherwise
  */
-forward OnFileUploaded(
+forward OnIncomingUploadCompleted(
     uploadId,
     routeId,
     const endpoint[],
@@ -844,7 +844,7 @@ forward OnFileUploaded(
  * @param reason Failure reason
  * @param crc32 Calculated CRC32 if available, otherwise empty
  */
-forward OnFileFailedUpload(
+forward OnIncomingUploadFailed(
     uploadId,
     const reason[],
     const crc32[]
@@ -856,7 +856,7 @@ forward OnFileFailedUpload(
  * @param uploadId Upload ID
  * @param percent Upload progress (0-100)
  */
-forward OnUploadProgress(uploadId, percent);
+forward OnIncomingUploadProgress(uploadId, percent);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Outgoing Callbacks
@@ -867,7 +867,7 @@ forward OnUploadProgress(uploadId, percent);
  *
  * @param uploadId Upload ID
  */
-forward OnFileUploadStarted(uploadId);
+forward OnOutgoingUploadStarted(uploadId);
 
 /**
  * Called periodically during an outgoing upload.
@@ -875,7 +875,7 @@ forward OnFileUploadStarted(uploadId);
  * @param uploadId Upload ID
  * @param percent Upload progress (0-100)
  */
-forward OnFileUploadProgress(uploadId, percent);
+forward OnOutgoingUploadProgress(uploadId, percent);
 
 /**
  * Called when an outgoing upload completes successfully.
@@ -885,20 +885,12 @@ forward OnFileUploadProgress(uploadId, percent);
  * @param responseBody Response body from remote server
  * @param crc32 CRC32 of uploaded file
  */
-forward OnFileUploadCompleted(
+forward OnOutgoingUploadCompleted(
     uploadId,
     httpStatus,
     const responseBody[],
     const crc32[]
 );
-
-/**
- * Called when an outgoing upload fails.
- *
- * @param uploadId Upload ID
- * @param errorMessage Failure reason
- */
-forward OnFileUploadFailed(uploadId, const errorMessage[]);
 
 /**
  * Called when an outgoing upload fails with structured error metadata.
@@ -909,20 +901,16 @@ forward OnFileUploadFailed(uploadId, const errorMessage[]);
  * @param errorMessage Detailed failure reason
  * @param httpStatus HTTP status code if available
  */
-forward OnFileUploadFailure(uploadId, errorCode, const errorType[], const errorMessage[], httpStatus);
+forward OnOutgoingUploadFailed(uploadId, errorCode, const errorType[], const errorMessage[], httpStatus);
 
 /**
  * Called when outbound Request/RequestJSON fails due to transport/internal errors.
  * (HTTP response codes still go to the per-request callback.)
  *
  * Signature is designed for global request failure handling.
- */
-forward OnRequestFailure(requestId, errorCode, const errorMessage[], len);
-
-/**
  * Extended request failure callback with error type and HTTP status metadata.
  */
-forward OnRequestFailureDetailed(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
+forward OnRequestFailure(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
 
 /**
  * Called when a websocket disconnects or is closed.

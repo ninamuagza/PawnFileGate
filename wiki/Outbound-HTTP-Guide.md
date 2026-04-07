@@ -13,7 +13,7 @@ public OnGameModeInit()
     REST_RequestHeaders(headers, sizeof(headers), "Authorization", "Bearer token-123");
     REST_RequestHeadersAppend(headers, sizeof(headers), "X-Server", "my-openmp");
 
-    g_API = REST_RequestsClient("https://api.example.com", headers, true);
+    g_API = REST_CreateRequestClient("https://api.example.com", headers, true);
     REST_SetRequestsClientHeader(g_API, "User-Agent", "PawnREST/1.0");
     return 1;
 }
@@ -71,8 +71,7 @@ public YourJsonCallback(requestId, httpStatus, nodeId)
 Transport/internal failures are emitted globally:
 
 ```pawn
-forward OnRequestFailure(requestId, errorCode, const errorMessage[], len);
-forward OnRequestFailureDetailed(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
+forward OnRequestFailure(requestId, errorCode, const errorType[], const errorMessage[], httpStatus);
 ```
 
 Typical `PAWNREST_ERR_*` categories:
@@ -134,5 +133,5 @@ public OnGameModeExit()
 
 1. Keep one client per external service and reuse it.
 2. Use short callback names scoped by domain (`OnAuthResponse`, `OnBillingResponse`, etc.).
-3. Always implement `OnRequestFailureDetailed` in production.
+3. Always implement `OnRequestFailure` in production.
 4. Prefer JSON request/response for typed payloads and future compatibility.

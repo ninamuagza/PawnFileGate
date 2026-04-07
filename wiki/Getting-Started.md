@@ -51,11 +51,11 @@ public OnGameModeInit()
 {
     REST_Start(8080);
 
-    g_MapRoute = REST_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
-    REST_AddKey(g_MapRoute, "upload-secret");
-    REST_SetRequireCRC32(g_MapRoute, true);
-    REST_AllowList(g_MapRoute, true);
-    REST_AllowDownload(g_MapRoute, true);
+    g_MapRoute = FILE_RegisterRoute("/maps", "scriptfiles/maps/", ".map,.json", 50);
+    FILE_AddAuthKey(g_MapRoute, "upload-secret");
+    FILE_SetRequireCRC32(g_MapRoute, true);
+    FILE_AllowList(g_MapRoute, true);
+    FILE_AllowDownload(g_MapRoute, true);
     return 1;
 }
 ```
@@ -73,7 +73,7 @@ new g_HealthRoute = -1;
 public OnGameModeInit()
 {
     REST_Start(8080);
-    g_HealthRoute = REST_Route(HTTP_METHOD_GET, "/api/healthz", "API_Healthz");
+    g_HealthRoute = REST_RegisterAPIRoute(HTTP_METHOD_GET, "/api/healthz", "API_Healthz");
     return 1;
 }
 
@@ -92,11 +92,11 @@ public API_Healthz(requestId)
 ## 5. Handle JSON Request Bodies
 
 ```pawn
-REST_Route(HTTP_METHOD_POST, "/api/announce", "API_Announce");
+REST_RegisterAPIRoute(HTTP_METHOD_POST, "/api/announce", "API_Announce");
 
 public API_Announce(requestId)
 {
-    new body = RequestJson(requestId);
+    new body = GetRequestJsonNode(requestId);
     if (body == -1)
     {
         RespondError(requestId, 400, "Invalid JSON");
@@ -129,7 +129,7 @@ new g_API = -1;
 
 public OnGameModeInit()
 {
-    g_API = REST_RequestsClient("https://api.example.com");
+    g_API = REST_CreateRequestClient("https://api.example.com");
     REST_Request(g_API, "/ping", HTTP_METHOD_GET, "OnPing");
     return 1;
 }

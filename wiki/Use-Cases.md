@@ -8,13 +8,13 @@ This page maps common production scenarios to concrete PawnREST APIs.
 Expose server status and moderation actions to a web dashboard.
 
 **Typical flow**
-1. Register routes with `REST_Route`.
-2. Protect sensitive endpoints with `REST_SetRouteAuth`.
-3. Read input via `REST_GetParam*`, `REST_GetQuery*`, and `RequestJson`.
+1. Register routes with `REST_RegisterAPIRoute`.
+2. Protect sensitive endpoints with `REST_SetRouteAuthKey`.
+3. Read input via `REST_GetParam*`, `REST_GetQuery*`, and `GetRequestJsonNode`.
 4. Return structured payloads with `RespondNode`.
 
 **Relevant APIs**  
-`REST_Route`, `REST_SetRouteAuth`, `REST_GetRequest*`, `RequestJson`, `RespondNode`
+`REST_RegisterAPIRoute`, `REST_SetRouteAuthKey`, `REST_GetRequest*`, `GetRequestJsonNode`, `RespondNode`
 
 ## 2. Managed File Distribution
 
@@ -22,13 +22,13 @@ Expose server status and moderation actions to a web dashboard.
 Use game server as controlled upload/download hub for maps or patch data.
 
 **Typical flow**
-1. Register upload route using `REST_RegisterRoute`.
-2. Set auth and integrity controls (`REST_AddKey`, `REST_SetRequireCRC32`).
-3. Enable required REST file operations (`REST_AllowList`, `REST_AllowDownload`, etc.).
+1. Register upload route using `FILE_RegisterRoute`.
+2. Set auth and integrity controls (`FILE_AddAuthKey`, `FILE_SetRequireCRC32`).
+3. Enable required REST file operations (`FILE_AllowList`, `FILE_AllowDownload`, etc.).
 4. Observe inbound lifecycle with upload callbacks.
 
 **Relevant APIs**  
-`REST_RegisterRoute`, `REST_SetConflict`, `REST_SetCorruptAction`, `REST_Allow*`, `OnFileUploaded`
+`FILE_RegisterRoute`, `FILE_SetConflict`, `FILE_SetCorruptAction`, `FILE_Allow*`, `OnIncomingUploadCompleted`
 
 ## 3. External Service Integration (Outbound HTTP)
 
@@ -36,13 +36,13 @@ Use game server as controlled upload/download hub for maps or patch data.
 Call remote auth/leaderboard/store APIs from gamemode events.
 
 **Typical flow**
-1. Create one reusable client per service using `REST_RequestsClient`.
+1. Create one reusable client per service using `REST_CreateRequestClient`.
 2. Dispatch requests with `REST_Request` / `REST_RequestJSON`.
 3. Handle per-request success callbacks and global failure callbacks.
 4. Inspect structured status/error metadata as needed.
 
 **Relevant APIs**  
-`REST_RequestsClient`, `REST_Request`, `REST_RequestJSON`, `OnRequestFailureDetailed`, `REST_GetRequestErrorCode`
+`REST_CreateRequestClient`, `REST_Request`, `REST_RequestJSON`, `OnRequestFailure`, `REST_GetRequestErrorCode`
 
 ## 4. Real-Time Event Stream Consumption (WebSocket)
 
@@ -63,12 +63,12 @@ Subscribe to external real-time event channels (moderation, orchestration, notif
 Push local files from server to an external storage or CI endpoint.
 
 **Typical flow**
-1. Queue upload with `REST_UploadFile` or `REST_UploadFileWithClient`.
-2. Track progress/status (`REST_GetUploadProgress`, `REST_GetUploadStatus`).
+1. Queue upload with `FILE_Upload` or `FILE_UploadWithClient`.
+2. Track progress/status (`FILE_GetUploadProgress`, `FILE_GetUploadStatus`).
 3. Handle rich success/failure callbacks.
 
 **Relevant APIs**  
-`REST_CreateUploadClient`, `REST_UploadFileWithClient`, `OnFileUploadCompleted`, `OnFileUploadFailure`
+`FILE_CreateUploadClient`, `FILE_UploadWithClient`, `OnOutgoingUploadCompleted`, `OnOutgoingUploadFailureDetailed`
 
 ## 6. Unified Integration Layer
 
@@ -90,7 +90,7 @@ Use PawnREST as a single networking layer inside gamemode.
 
 For real deployments, pair the above use-cases with:
 
-1. route-level auth (`REST_AddKey`, `REST_SetRouteAuth`)
+1. route-level auth (`FILE_AddAuthKey`, `REST_SetRouteAuthKey`)
 2. strict upload constraints (extension, size, CRC32)
 3. TLS-enabled build when using HTTPS/WSS
 4. explicit handling for structured error callbacks
@@ -101,13 +101,13 @@ For real deployments, pair the above use-cases with:
 Keep your bot/service layer stateless and let the open.mp server remain the single data authority.
 
 **Typical flow**
-1. Expose bot-only routes via `REST_Route` and protect them using `REST_SetRouteAuth`.
-2. Read critical identifiers from path/query/header/body as needed (`REST_GetParam*`, `REST_GetQuery*`, `REST_GetHeader`, `RequestJson`).
+1. Expose bot-only routes via `REST_RegisterAPIRoute` and protect them using `REST_SetRouteAuthKey`.
+2. Read critical identifiers from path/query/header/body as needed (`REST_GetParam*`, `REST_GetQuery*`, `REST_GetHeader`, `GetRequestJsonNode`).
 3. Return consistent error payloads (`RespondError`) for missing input, not-found, and unauthorized cases.
 4. Keep bot-side logic focused on orchestration/UI while data access stays in gamemode callbacks.
 
 **Relevant APIs**  
-`REST_Route`, `REST_SetRouteAuth`, `REST_GetParam`, `REST_GetQuery`, `REST_GetHeader`, `RequestJson`, `RespondNode`, `RespondError`
+`REST_RegisterAPIRoute`, `REST_SetRouteAuthKey`, `REST_GetParam`, `REST_GetQuery`, `REST_GetHeader`, `GetRequestJsonNode`, `RespondNode`, `RespondError`
 
 ## 9. File Management via Bot/External Tools
 
@@ -115,9 +115,9 @@ Keep your bot/service layer stateless and let the open.mp server remain the sing
 Enable Discord bot or admin tools to list, upload, download, and delete files on the server without direct SSH access.
 
 **Typical flow**
-1. Register upload route with `REST_RegisterRoute`.
-2. Enable REST file ops: `REST_AllowList`, `REST_AllowDownload`, `REST_AllowDelete`, `REST_AllowInfo`.
-3. Protect with `REST_AddKey`.
+1. Register upload route with `FILE_RegisterRoute`.
+2. Enable REST file ops: `FILE_AllowList`, `FILE_AllowDownload`, `FILE_AllowDelete`, `FILE_AllowInfo`.
+3. Protect with `FILE_AddAuthKey`.
 4. Bot/tool calls HTTP endpoints:
    - `GET {route}/files` — list files (returns `{ files: ["a.map", "b.map"] }`)
    - `GET {route}/files/{name}` — download file (raw binary)
@@ -155,4 +155,4 @@ await fetch('http://server:8080/maps/files/oldmap.map', {
 ```
 
 **Relevant APIs**  
-`REST_RegisterRoute`, `REST_AddKey`, `REST_AllowList`, `REST_AllowDownload`, `REST_AllowDelete`, `REST_AllowInfo`
+`FILE_RegisterRoute`, `FILE_AddAuthKey`, `FILE_AllowList`, `FILE_AllowDownload`, `FILE_AllowDelete`, `FILE_AllowInfo`
