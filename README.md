@@ -639,6 +639,7 @@ stock GetOnlineCount()
 
 ## Credits
 
-- [AmyrAhmady](https://github.com/AmyrAhmady) for the open.mp component SDK
-- [yhirose/cpp-httplib](https://github.com/yhirose/cpp-httplib) for the HTTP library
-- [Fanorisky](https://github.com/Fanorisky)
+- **yhirose**: for the HTTP library
+- **Southclaws**: for pawn-requests API refference
+- **Implementation**: Fanorisky
+- **SA-MP/open.mp Plugin SDK**: SA-MP Team, open.mp Contributors
