@@ -15,18 +15,9 @@ Use this page when route behavior looks inconsistent or request values appear mi
 file components/PawnREST.so
 ```
 
-Expected architecture must match your runtime:
+Expected architecture must match your omp runtime:
 - `ELF 32-bit ... Intel i386`
 - or `ELF 64-bit ... x86-64`
-
-If you need a 32-bit build:
-```bash
-cmake -S . -B build-32 -G Ninja \
-  -DCMAKE_C_FLAGS=-m32 \
-  -DCMAKE_CXX_FLAGS=-m32 \
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo
-cmake --build build-32 --parallel
-```
 
 ## 2. File route REST endpoints return `404`
 
