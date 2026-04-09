@@ -5,8 +5,12 @@ new g_HealthRoute = -1;
 new g_EchoRoute = -1;
 new g_HeadRoute = -1;
 new g_OptionsRoute = -1;
+ygy ygy ygy
 
-stock GetMethodName(method, output[], outputSize)
+
+
+
+stock YttaAjaYgy(method, output[], outputSize)
 {
     switch (method)
     {
