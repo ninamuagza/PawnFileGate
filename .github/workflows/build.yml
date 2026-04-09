@@ -38,7 +38,6 @@ jobs:
 
       - name: Prepare Docker images (prebuilt + fallback)
         run: |
-          docker pull pawnrest/build:ubuntu-18.04 || docker build -t pawnrest/build:ubuntu-18.04 docker/build_ubuntu-18.04/
           docker pull pawnrest/build:ubuntu-22.04-static-ssl || docker build -t pawnrest/build:ubuntu-22.04-static-ssl docker/build_ubuntu-22.04-static-ssl/
 
       - name: Build Linux open.mp (dynamic SSL)
@@ -55,7 +54,7 @@ jobs:
             -e BUILD_SAMP_PLUGIN=OFF \
             -e PAWNREST_ENABLE_TLS=ON \
             -e PAWNREST_TLS_STATIC_OPENSSL=OFF \
-            pawnrest/build:ubuntu-18.04
+            pawnrest/build:ubuntu-22.04-static-ssl
 
       - name: Build Linux SA-MP plugin (dynamic SSL)
         env:
@@ -71,7 +70,7 @@ jobs:
             -e BUILD_SAMP_PLUGIN=ON \
             -e PAWNREST_ENABLE_TLS=ON \
             -e PAWNREST_TLS_STATIC_OPENSSL=OFF \
-            pawnrest/build:ubuntu-18.04
+            pawnrest/build:ubuntu-22.04-static-ssl
 
       - name: Build Linux open.mp (static SSL)
         env:

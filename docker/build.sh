@@ -26,7 +26,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 || docker_dir="$DOCKERFILE_DIR"
 
 if [[ -z "$docker_image" || -z "$docker_dir" ]]; then
-    if [[ "${tls_enabled^^}" == "ON" && "${tls_static^^}" == "ON" ]]; then
+    if [[ "${tls_enabled^^}" == "ON" ]]; then
         docker_image="pawnrest/build:ubuntu-22.04-static-ssl"
         docker_dir="${SCRIPT_DIR}/build_ubuntu-22.04-static-ssl/"
     else
