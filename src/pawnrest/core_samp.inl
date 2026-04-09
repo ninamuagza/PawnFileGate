@@ -1,12 +1,6 @@
-class PawnRESTComponent final
-    : public IComponent
-    , public PawnEventHandler
+class PawnRESTCore
 {
 private:
-    ICore*             core    = nullptr;
-    IPawnComponent*    pawn    = nullptr;
-    ITimersComponent*  timers  = nullptr;
-    ITimer*            drainTimer = nullptr;
 
     // Receive (Server)
     std::unordered_map<int, UploadRoute> routes;
@@ -74,16 +68,6 @@ private:
     
     std::mutex apiEventMutex;
     std::vector<APIRequestEvent> pendingApiEvents;
-
-    class DrainTimerHandler : public TimerTimeOutHandler
-    {
-        PawnRESTComponent* owner;
-    public:
-        DrainTimerHandler(PawnRESTComponent* o) : owner(o) {}
-        void timeout(ITimer&) override { owner->DrainEvents(); }
-        void free(ITimer&) override { delete this; }
-        ~DrainTimerHandler() = default;
-    };
 
 private:
     std::string MakeTempPath(int uploadId)
@@ -1494,175 +1478,6 @@ private:
         }
     }
 
-    void DrainEvents()
-    {
-        if (!pawn) return;
-
-        // Incoming
-        std::vector<UploadEvent> localIncoming;
-        {
-            std::lock_guard<std::mutex> lock(eventMutex);
-            localIncoming.swap(pendingEvents);
-        }
-
-        for (const auto& ev : localIncoming) {
-            switch (ev.type) {
-                case UploadEvent::Type::Completed: {
-                    std::string crcHex = CRC32::toHex(ev.crc32Checksum);
-                    CallPawnEvent("OnIncomingUploadCompleted",
-                        ev.uploadId,
-                        ev.routeId,
-                        StringView(ev.endpoint),
-                        StringView(ev.filename),
-                        StringView(ev.filepath),
-                        StringView(crcHex),
-                        ev.crc32Matched ? 1 : 0
-                    );
-                    break;
-                }
-                case UploadEvent::Type::Failed: {
-                    std::string crcHex = CRC32::toHex(ev.crc32Checksum);
-                    CallPawnEvent("OnIncomingUploadFailed",
-                        ev.uploadId,
-                        StringView(ev.reason),
-                        StringView(crcHex)
-                    );
-                    break;
-                }
-                case UploadEvent::Type::Progress:
-                    CallPawnEvent("OnIncomingUploadProgress",
-                        ev.uploadId,
-                        ev.progressPct
-                    );
-                    break;
-            }
-        }
-
-        // Outgoing
-        std::vector<OutgoingUploadEvent> localOutgoing;
-        {
-            std::lock_guard<std::mutex> lock(outgoingEventMutex);
-            localOutgoing.swap(pendingOutgoingEvents);
-        }
-
-        for (const auto& ev : localOutgoing) {
-            switch (ev.type) {
-                case OutgoingUploadEvent::Type::Started:
-                    CallPawnEvent("OnOutgoingUploadStarted", ev.uploadId);
-                    break;
-                case OutgoingUploadEvent::Type::Progress:
-                    CallPawnEvent("OnOutgoingUploadProgress", ev.uploadId, ev.progressPct);
-                    break;
-                case OutgoingUploadEvent::Type::Completed: {
-                    std::string crcHex = CRC32::toHex(ev.crc32Checksum);
-                    CallPawnEvent("OnOutgoingUploadCompleted",
-                        ev.uploadId,
-                        ev.httpStatus,
-                        StringView(ev.responseBody),
-                        StringView(crcHex)
-                    );
-                    break;
-                }
-                case OutgoingUploadEvent::Type::Failed:
-                    CallPawnEvent("OnOutgoingUploadFailed",
-                        ev.uploadId,
-                        ev.errorCode,
-                        StringView(ev.errorType),
-                        StringView(ev.errorMessage),
-                        ev.httpStatus
-                    );
-                    break;
-            }
-        }
-
-        // Outgoing requests
-        std::vector<OutgoingRequestEvent> localRequestEvents;
-        {
-            std::lock_guard<std::mutex> lock(requestEventMutex);
-            localRequestEvents.swap(pendingRequestEvents);
-        }
-
-        for (const auto& ev : localRequestEvents) {
-            switch (ev.type) {
-                case OutgoingRequestEvent::Type::CompletedText:
-                    CallPawnEvent(
-                        ev.callbackName.c_str(),
-                        ev.requestId,
-                        ev.httpStatus,
-                        StringView(ev.responseBody),
-                        static_cast<int>(ev.responseBody.size()));
-                    break;
-                case OutgoingRequestEvent::Type::CompletedJson:
-                    CallPawnEvent(
-                        ev.callbackName.c_str(),
-                        ev.requestId,
-                        ev.httpStatus,
-                        ev.nodeId);
-                    break;
-                case OutgoingRequestEvent::Type::Failed:
-                    CallPawnEvent(
-                        "OnRequestFailure",
-                        ev.requestId,
-                        ev.errorCode,
-                        StringView(ev.errorType),
-                        StringView(ev.errorMessage),
-                        ev.httpStatus);
-                    break;
-            }
-        }
-
-        // WebSocket events
-        std::vector<WebSocketEvent> localWebSocketEvents;
-        {
-            std::lock_guard<std::mutex> lock(webSocketEventMutex);
-            localWebSocketEvents.swap(pendingWebSocketEvents);
-        }
-
-        for (const auto& ev : localWebSocketEvents) {
-            switch (ev.type) {
-                case WebSocketEvent::Type::MessageText:
-                    CallPawnEvent(
-                        ev.callbackName.c_str(),
-                        ev.socketId,
-                        StringView(ev.textPayload),
-                        static_cast<int>(ev.textPayload.size()));
-                    break;
-                case WebSocketEvent::Type::MessageJson:
-                    CallPawnEvent(
-                        ev.callbackName.c_str(),
-                        ev.socketId,
-                        ev.jsonNodeId);
-                    break;
-                case WebSocketEvent::Type::Disconnected:
-                    CallPawnEvent(
-                        "OnWebSocketDisconnect",
-                        ev.socketId,
-                        ev.isJson ? 1 : 0,
-                        ev.closeStatus,
-                        StringView(ev.closeReason),
-                        static_cast<int>(ev.closeReason.size()),
-                        ev.errorCode);
-                    CleanupWebSocketConnection(ev.socketId);
-                    break;
-            }
-        }
-
-        // API Events
-        DrainApiEvents();
-    }
-
-    template<typename... Args>
-    void CallPawnEvent(const char* name, Args&&... args)
-    {
-        if (!pawn) return;
-
-        if (auto script = pawn->mainScript())
-            script->Call(name, DefaultReturnValue_False, std::forward<Args>(args)...);
-
-        for (IPawnScript* script : pawn->sideScripts())
-            script->Call(name, DefaultReturnValue_False, std::forward<Args>(args)...);
-    }
-
     // ═══════════════════════════════════════════════════════════════════════════
     // REST API Router
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1873,20 +1688,6 @@ private:
             activeRequests.erase(ctx->requestId);
         }
     }
-
-    void DrainApiEvents()
-    {
-        std::vector<APIRequestEvent> events;
-        {
-            std::lock_guard<std::mutex> lock(apiEventMutex);
-            events.swap(pendingApiEvents);
-        }
-        
-        for (const auto& ev : events) {
-            CallPawnEvent(ev.callbackName.c_str(), ev.requestId);
-        }
-    }
-
     void SetupApiHandlers()
     {
         if (!httpServer) return;
@@ -2304,7 +2105,6 @@ private:
         const std::string& keyPath = "")
     {
         if (isRunning) {
-            if (core) core->printLn("[PawnREST] ERROR: Server already running on port %d", currentPort);
             return false;
         }
 
@@ -2333,17 +2133,14 @@ private:
             std::string certFullPath = resolvePath(certPath);
             std::string keyFullPath = resolvePath(keyPath);
             if (certFullPath.empty() || keyFullPath.empty()) {
-                if (core) core->printLn("[PawnREST] ERROR: TLS requires valid cert and key paths");
                 return false;
             }
             if (!FileUtils::FileExists(certFullPath) || !FileUtils::FileExists(keyFullPath)) {
-                if (core) core->printLn("[PawnREST] ERROR: TLS cert/key file not found");
                 return false;
             }
 
             auto sslServer = std::make_unique<httplib::SSLServer>(certFullPath.c_str(), keyFullPath.c_str());
             if (!sslServer->is_valid()) {
-                if (core) core->printLn("[PawnREST] ERROR: Failed to initialize HTTPS server with provided cert/key");
                 return false;
             }
             httpServer = std::move(sslServer);
@@ -2351,7 +2148,6 @@ private:
             tlsCertPath = certFullPath;
             tlsKeyPath = keyFullPath;
 #else
-            if (core) core->printLn("[PawnREST] ERROR: TLS/HTTPS is not available in this build");
             return false;
 #endif
         } else {
@@ -2390,10 +2186,6 @@ private:
         SetupApiHandlers();
 
         if (!httpServer->bind_to_port("0.0.0.0", port)) {
-            if (core) {
-                core->printLn("  >>> The selected port %d is already in use by another process.", port);
-                core->printLn("  >>> Please use a different port.");
-            }
             httpServer.reset();
             tlsEnabled = false;
             tlsCertPath.clear();
@@ -2407,10 +2199,6 @@ private:
         httpThread = std::thread([this]() {
             httpServer->listen_after_bind();
         });
-
-        if (core) {
-            core->printLn("  [PawnREST] %s server started on port %d", tlsEnabled ? "HTTPS" : "HTTP", port);
-        }
 
         return true;
     }
@@ -2434,178 +2222,68 @@ private:
     }
 
 public:
-    PROVIDE_UID(0xF12A3B4C5D6E7F80);
 
-    ~PawnRESTComponent()
+
+public:
+    PawnRESTCore() = default;
+
+    void Initialize()
+    {
+        if (serverRootPath.empty()) {
+            serverRootPath = FileUtils::GetCurrentWorkingDirectory();
+        }
+        FileUtils::CreateDirectory(serverRootPath + Config::TEMP_DIR);
+
+        if (!uploadWorkerRunning) {
+            uploadWorkerRunning = true;
+            uploadWorkerThread = std::thread([this]() { UploadWorker(); });
+        }
+
+        if (!requestWorkerRunning) {
+            requestWorkerRunning = true;
+            requestWorkerThread = std::thread([this]() { RequestWorker(); });
+        }
+
+        if (!cleanupThread.joinable()) {
+            shutdownFlag = false;
+            cleanupThread = std::thread([this]() {
+                while (!shutdownFlag) {
+                    for (int i = 0; i < 60 && !shutdownFlag; ++i) {
+                        std::this_thread::sleep_for(std::chrono::seconds(1));
+                    }
+                    if (shutdownFlag) break;
+
+                    try {
+                        FileUtils::CleanupTempFiles(
+                            serverRootPath + Config::TEMP_DIR,
+                            static_cast<int>(Config::TEMP_CLEANUP_SEC)
+                        );
+                    } catch (...) {}
+                }
+            });
+        }
+    }
+
+    void Shutdown()
     {
         StopHttpServer();
 
         uploadWorkerRunning = false;
-        if (uploadWorkerThread.joinable()) {
-            uploadWorkerThread.join();
-        }
+        if (uploadWorkerThread.joinable()) uploadWorkerThread.join();
 
         requestWorkerRunning = false;
-        if (requestWorkerThread.joinable()) {
-            requestWorkerThread.join();
-        }
+        if (requestWorkerThread.joinable()) requestWorkerThread.join();
 
         ShutdownWebSocketConnections();
 
         shutdownFlag = true;
-        if (cleanupThread.joinable()) {
-            cleanupThread.join();
-        }
-
-        if (pawn)
-            pawn->getEventDispatcher().removeEventHandler(this);
-
-        if (drainTimer) {
-            drainTimer->kill();
-            drainTimer = nullptr;
-        }
-
-        g_Component = nullptr;
+        if (cleanupThread.joinable()) cleanupThread.join();
     }
 
-    StringView componentName() const override
+    ~PawnRESTCore()
     {
-        return "PawnREST";
+        Shutdown();
     }
-
-    SemanticVersion componentVersion() const override
-    {
-        return SemanticVersion(1, 3, 0, 0);
-    }
-
-    void onLoad(ICore* c) override
-    {
-        core = c;
-        g_Component = this;
-
-        serverRootPath = FileUtils::GetCurrentWorkingDirectory();
-        FileUtils::CreateDirectory(serverRootPath + Config::TEMP_DIR);
-
-        core->printLn(" ");
-        core->printLn("  PawnREST v1.3.0 loaded.");
-        core->printLn("  Author: Fanorisky (https://github.com/Fanorisky/PawnREST)");
-        core->printLn(" ");
-
-        setAmxLookups(core);
-    }
-
-    void onInit(IComponentList* components) override
-    {
-        pawn   = components->queryComponent<IPawnComponent>();
-        timers = components->queryComponent<ITimersComponent>();
-
-        if (pawn) {
-            setAmxFunctions(pawn->getAmxFunctions());
-            setAmxLookups(components);
-            pawn->getEventDispatcher().addEventHandler(this);
-        }
-
-        if (timers) {
-            int intervalMs = 1000 / Config::DRAIN_FPS;
-            drainTimer = timers->create(
-                new DrainTimerHandler(this),
-                std::chrono::milliseconds(intervalMs),
-                true
-            );
-        }
-
-        uploadWorkerRunning = true;
-        uploadWorkerThread = std::thread([this]() {
-            UploadWorker();
-        });
-
-        requestWorkerRunning = true;
-        requestWorkerThread = std::thread([this]() {
-            RequestWorker();
-        });
-
-        cleanupThread = std::thread([this]() {
-            while (!shutdownFlag) {
-                for (int i = 0; i < 60 && !shutdownFlag; ++i) {
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                }
-                if (shutdownFlag) break;
-
-                try {
-                    FileUtils::CleanupTempFiles(
-                        serverRootPath + Config::TEMP_DIR,
-                        static_cast<int>(Config::TEMP_CLEANUP_SEC)
-                    );
-                } catch (...) {}
-            }
-        });
-    }
-
-    void onReady() override {}
-
-    void onFree(IComponent* component) override
-    {
-        if (component == pawn) {
-            pawn = nullptr;
-            setAmxFunctions();
-            setAmxLookups();
-        }
-        else if (component == timers) {
-            timers   = nullptr;
-            drainTimer = nullptr;
-        }
-    }
-
-    void free() override { delete this; }
-
-    void reset() override
-    {
-        std::unique_lock<std::mutex> lock(routesMutex);
-        routes.clear();
-        lock.unlock();
-
-        {
-            std::lock_guard<std::mutex> lock2(eventMutex);
-            pendingEvents.clear();
-        }
-        {
-            std::lock_guard<std::mutex> lock3(outgoingEventMutex);
-            pendingOutgoingEvents.clear();
-        }
-        {
-            std::lock_guard<std::mutex> lock4(requestEventMutex);
-            pendingRequestEvents.clear();
-        }
-        {
-            std::lock_guard<std::mutex> lock5(webSocketEventMutex);
-            pendingWebSocketEvents.clear();
-        }
-        {
-            std::lock_guard<std::mutex> lock6(outgoingMutex);
-            outgoingUploads.clear();
-            uploadClients.clear();
-        }
-        {
-            std::lock_guard<std::mutex> lock7(requestMutex);
-            outgoingRequests.clear();
-        }
-
-        ShutdownWebSocketConnections();
-
-        {
-            std::lock_guard<std::mutex> lock8(jsonNodesMutex);
-            jsonNodes.clear();
-        }
-    }
-
-    void onAmxLoad(IPawnScript& script) override
-    {
-        pawn_natives::AmxLoad(script.GetAMX());
-        script.Register("REST_JsonObject", &REST_JsonObjectVariadic);
-        script.Register("REST_JsonArray", &REST_JsonArrayVariadic);
-    }
-
-    void onAmxUnload(IPawnScript&) override {}
 
     // Public API
     bool Start(int port) { return StartHttpServer(port, false); }
@@ -2617,7 +2295,6 @@ public:
         if (!isRunning) return false;
         bool wasTls = tlsEnabled;
         StopHttpServer();
-        if (core) core->printLn("  [PawnREST] %s server stopped", wasTls ? "HTTPS" : "HTTP");
         return true;
     }
     bool IsRunning() const { return isRunning; }
@@ -2671,11 +2348,6 @@ public:
             
             // Register file ops endpoints (list, download, delete, info)
             RegisterFileOpsForRoute(id, capturedEndpoint);
-        }
-
-        if (core) {
-            core->printLn("  Files: POST %s -> %s",
-                capturedEndpoint.c_str(), safePath.c_str());
         }
 
         return id;
@@ -2836,11 +2508,6 @@ public:
         }
         
         const char* methodNames[] = { "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS" };
-        if (core) {
-            core->printLn("  API: %s %s -> %s()",
-                methodNames[method], endpoint.c_str(), callback.c_str());
-        }
-        
         return id;
     }
     
@@ -3657,7 +3324,6 @@ public:
 
         std::string fullPath = serverRootPath + safeFile;
         if (!FileUtils::FileExists(fullPath)) {
-            if (core) core->printLn("[PawnREST] Upload failed: file not found %s", fullPath.c_str());
             return -1;
         }
 
@@ -3679,12 +3345,6 @@ public:
         {
             std::lock_guard<std::mutex> lock(outgoingMutex);
             outgoingUploads[id] = std::move(upload);
-        }
-
-        if (core) {
-            core->printLn("[PawnREST] Upload queued #%d: %s -> %s (%s)",
-                id, filepath.c_str(), url.c_str(),
-                (mode == 1 ? "RAW" : "MULTIPART"));
         }
 
         return id;
@@ -3709,10 +3369,6 @@ public:
         {
             std::lock_guard<std::mutex> lock(outgoingMutex);
             uploadClients[id] = std::move(client);
-        }
-
-        if (core) {
-            core->printLn("[PawnREST] Upload client #%d created: %s", id, baseUrl.c_str());
         }
         return id;
     }
@@ -4161,4 +3817,44 @@ public:
         return WebSocketSendText(socketId, Json::StringifyNode(node));
     }
 
+    // Raw event drain helpers for non-open.mp runtimes (e.g. SA-MP plugin mode).
+    std::vector<APIRequestEvent> DrainApiEventsRaw()
+    {
+        std::vector<APIRequestEvent> events;
+        std::lock_guard<std::mutex> lock(apiEventMutex);
+        events.swap(pendingApiEvents);
+        return events;
+    }
+
+    std::vector<UploadEvent> DrainUploadEventsRaw()
+    {
+        std::vector<UploadEvent> events;
+        std::lock_guard<std::mutex> lock(eventMutex);
+        events.swap(pendingEvents);
+        return events;
+    }
+
+    std::vector<OutgoingUploadEvent> DrainOutgoingUploadEventsRaw()
+    {
+        std::vector<OutgoingUploadEvent> events;
+        std::lock_guard<std::mutex> lock(outgoingEventMutex);
+        events.swap(pendingOutgoingEvents);
+        return events;
+    }
+
+    std::vector<OutgoingRequestEvent> DrainRequestEventsRaw()
+    {
+        std::vector<OutgoingRequestEvent> events;
+        std::lock_guard<std::mutex> lock(requestEventMutex);
+        events.swap(pendingRequestEvents);
+        return events;
+    }
+
+    std::vector<WebSocketEvent> DrainWebSocketEventsRaw()
+    {
+        std::vector<WebSocketEvent> events;
+        std::lock_guard<std::mutex> lock(webSocketEventMutex);
+        events.swap(pendingWebSocketEvents);
+        return events;
+    }
 };

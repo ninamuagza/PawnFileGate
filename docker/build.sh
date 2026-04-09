@@ -6,13 +6,12 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 [[ -z "$CONFIG" ]] \
 && config=RelWithDebInfo \
 || config="$CONFIG"
-# Available options: [true], false
-[[ -z "$BUILD_SERVER" ]] \
-&& build_server=1 \
-|| build_server="$BUILD_SERVER"
 [[ -z "$BUILD_DIR" ]] \
 && build_dir=build \
 || build_dir="$BUILD_DIR"
+[[ -z "$BUILD_SAMP_PLUGIN" ]] \
+&& build_samp_plugin=OFF \
+|| build_samp_plugin="$BUILD_SAMP_PLUGIN"
 [[ -z "$PAWNREST_ENABLE_TLS" ]] \
 && tls_enabled=OFF \
 || tls_enabled="$PAWNREST_ENABLE_TLS"
@@ -56,8 +55,8 @@ docker run \
     -v "${REPO_ROOT}:/code" \
     -v "${SCRIPT_DIR}/${build_dir}:/code/${build_dir}" \
     -e CONFIG=${config} \
-    -e BUILD_SERVER=${build_server} \
     -e BUILD_DIR=${build_dir} \
+    -e BUILD_SAMP_PLUGIN=${build_samp_plugin} \
     -e PAWNREST_ENABLE_TLS=${tls_enabled} \
     -e PAWNREST_TLS_STATIC_OPENSSL=${tls_static} \
     "${docker_image}"

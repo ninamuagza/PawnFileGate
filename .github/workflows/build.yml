@@ -8,7 +8,6 @@ on:
 
 env:
   CONFIG: MinSizeRel
-  BUILD_SERVER: "1"
 
 jobs:
 
@@ -22,116 +21,152 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Verify SA-MP SDK availability
+        run: |
+          test -f deps/samp-plugin-sdk/plugincommon.h || {
+            echo "deps/samp-plugin-sdk is missing. Commit it or add it as a git submodule before running CI."
+            exit 1
+          }
+
       - name: Prepare build folder (uid 1000 required by container)
         run: |
-          mkdir -p docker/build
-          mkdir -p docker/build-static-ssl
-          sudo chown 1000:1000 docker/build
-          sudo chown 1000:1000 docker/build-static-ssl
+          set -eux
+          for dir in build-omp build-samp build-omp-static-ssl; do
+            mkdir -p "docker/${dir}"
+            sudo chown 1000:1000 "docker/${dir}"
+          done
 
       - name: Prepare Docker images (prebuilt + fallback)
         run: |
           docker pull pawnrest/build:ubuntu-18.04 || docker build -t pawnrest/build:ubuntu-18.04 docker/build_ubuntu-18.04/
           docker pull pawnrest/build:ubuntu-22.04-static-ssl || docker build -t pawnrest/build:ubuntu-22.04-static-ssl docker/build_ubuntu-22.04-static-ssl/
 
-      - name: Run build in Docker container
+      - name: Build Linux open.mp (dynamic SSL)
         env:
           CONFIG: ${{ env.CONFIG }}
-          BUILD_SERVER: ${{ env.BUILD_SERVER }}
         run: |
+          set -eux
           docker run --rm -t \
             -w /code \
             -v "${{ github.workspace }}:/code" \
-            -v "${{ github.workspace }}/docker/build:/code/build" \
+            -v "${{ github.workspace }}/docker/build-omp:/code/build-omp" \
             -e CONFIG=${CONFIG} \
-            -e BUILD_SERVER=${BUILD_SERVER} \
+            -e BUILD_DIR=build-omp \
+            -e BUILD_SAMP_PLUGIN=OFF \
             pawnrest/build:ubuntu-18.04
 
-      - name: Run static SSL build in Docker container
+      - name: Build Linux SA-MP plugin (dynamic SSL)
         env:
           CONFIG: ${{ env.CONFIG }}
-          BUILD_SERVER: ${{ env.BUILD_SERVER }}
         run: |
+          set -eux
           docker run --rm -t \
             -w /code \
             -v "${{ github.workspace }}:/code" \
-            -v "${{ github.workspace }}/docker/build-static-ssl:/code/build-static-ssl" \
+            -v "${{ github.workspace }}/docker/build-samp:/code/build-samp" \
             -e CONFIG=${CONFIG} \
-            -e BUILD_SERVER=${BUILD_SERVER} \
-            -e BUILD_DIR=build-static-ssl \
+            -e BUILD_DIR=build-samp \
+            -e BUILD_SAMP_PLUGIN=ON \
+            pawnrest/build:ubuntu-18.04
+
+      - name: Build Linux open.mp (static SSL)
+        env:
+          CONFIG: ${{ env.CONFIG }}
+        run: |
+          set -eux
+          docker run --rm -t \
+            -w /code \
+            -v "${{ github.workspace }}:/code" \
+            -v "${{ github.workspace }}/docker/build-omp-static-ssl:/code/build-omp-static-ssl" \
+            -e CONFIG=${CONFIG} \
+            -e BUILD_DIR=build-omp-static-ssl \
+            -e BUILD_SAMP_PLUGIN=OFF \
             -e PAWNREST_ENABLE_TLS=ON \
             -e PAWNREST_TLS_STATIC_OPENSSL=ON \
             pawnrest/build:ubuntu-22.04-static-ssl
 
       - name: Normalize artifact permissions
         run: |
-          sudo chown -R "$(id -u):$(id -g)" docker/build docker/build-static-ssl
-          chmod -R u+rwX docker/build docker/build-static-ssl
+          set -eux
+          sudo chown -R "$(id -u):$(id -g)" docker/build-omp docker/build-samp docker/build-omp-static-ssl
+          chmod -R u+rwX docker/build-omp docker/build-samp docker/build-omp-static-ssl
 
       - name: Strip Linux binaries
         run: |
-          find docker/build docker/build-static-ssl -type f -name "*.so" -print -exec strip --strip-unneeded {} \;
+          set -eux
+          strip --strip-unneeded docker/build-omp/PawnREST.so
+          strip --strip-unneeded docker/build-samp/PawnREST.so
+          strip --strip-unneeded docker/build-omp-static-ssl/PawnREST.so
+
+      - name: Organize Linux artifacts
+        run: |
+          set -eux
+          mkdir -p artifacts/linux
+          cp docker/build-omp/PawnREST.so artifacts/linux/PawnREST-omp-linux32.so
+          cp docker/build-samp/PawnREST.so artifacts/linux/PawnREST-samp-linux32.so
+          cp docker/build-omp-static-ssl/PawnREST.so artifacts/linux/PawnREST-omp-linux32-static-ssl.so
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pawnrest-linux-so-32bit
+          name: pawnrest-linux-32bit
           path: |
-            docker/build/**/*.so
-            docker/build/*.so
-            PawnREST.inc
-          if-no-files-found: error
-
-      - name: Upload Linux static SSL artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: pawnrest-linux-so-32bit-static-ssl
-          path: |
-            docker/build-static-ssl/PawnREST.so
+            artifacts/linux/PawnREST-omp-linux32.so
+            artifacts/linux/PawnREST-samp-linux32.so
+            artifacts/linux/PawnREST-omp-linux32-static-ssl.so
             PawnREST.inc
           if-no-files-found: error
 
   windows-simple:
-    name: Build Windows PawnREST.dll (32-bit)
+    name: Build Windows PawnREST.dll (32-bit, ${{ matrix.target }})
     runs-on: windows-latest
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: omp
+            build_samp_plugin: OFF
+          - target: samp
+            build_samp_plugin: ON
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Verify SA-MP SDK availability
+        run: |
+          if (-not (Test-Path "deps/samp-plugin-sdk/plugincommon.h")) {
+            throw "deps/samp-plugin-sdk is missing. Commit it or add it as a git submodule before running CI."
+          }
+        shell: powershell
     
       - name: Configure CMake for 32-bit
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A Win32 -DCMAKE_BUILD_TYPE=MinSizeRel
+          cmake -S . -B build-${{ matrix.target }} -G "Visual Studio 17 2022" -A Win32 -DCMAKE_BUILD_TYPE=MinSizeRel -DBUILD_SAMP_PLUGIN=${{ matrix.build_samp_plugin }}
         shell: powershell
     
       - name: Build
         run: |
-          cmake --build build --config MinSizeRel --parallel
+          cmake --build build-${{ matrix.target }} --config MinSizeRel --parallel
         shell: powershell
     
       - name: Organize artifacts
         run: |
-          # Create artifacts folder
           New-Item -ItemType Directory -Path "artifacts" -Force | Out-Null
-          
-          # Copy PawnREST DLLs to artifacts folder
-          Get-ChildItem -Path "build" -Filter "pawnrest*.dll" -Recurse | ForEach-Object {
-            Copy-Item $_.FullName -Destination "artifacts\" -Force
-            Write-Host "Copied: $($_.Name)"
+          $dllPath = Get-ChildItem -Path "build-${{ matrix.target }}" -Filter "PawnREST.dll" -Recurse | Select-Object -First 1
+          if (-not $dllPath) {
+            throw "PawnREST.dll not found for target ${{ matrix.target }}"
           }
-          
-          # List all artifacts
-          Write-Host "`n=== Final artifacts ==="
-          Get-ChildItem -Path "artifacts" | Format-Table Name, Length
+          Copy-Item $dllPath.FullName -Destination "artifacts/PawnREST-${{ matrix.target }}-win32.dll" -Force
         shell: powershell
     
       - name: Upload Windows DLL artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pawnrest-windows-dll-32bit
+          name: pawnrest-windows-${{ matrix.target }}-dll-32bit
           path: |
-            artifacts/*.dll
+            artifacts/PawnREST-${{ matrix.target }}-win32.dll
             PawnREST.inc
           if-no-files-found: error

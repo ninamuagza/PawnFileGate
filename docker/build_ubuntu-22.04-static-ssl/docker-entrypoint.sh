@@ -1,7 +1,7 @@
 #!/bin/sh
 [ -z $CONFIG ] && config=Release || config="$CONFIG"
-[ -z $BUILD_SERVER ] && build_server=1 || build_server="$BUILD_SERVER"
 [ -z $BUILD_DIR ] && build_dir=build || build_dir="$BUILD_DIR"
+[ -z $BUILD_SAMP_PLUGIN ] && build_samp_plugin=OFF || build_samp_plugin="$BUILD_SAMP_PLUGIN"
 [ -z $PAWNREST_ENABLE_TLS ] && tls_enabled=OFF || tls_enabled="$PAWNREST_ENABLE_TLS"
 [ -z $PAWNREST_TLS_STATIC_OPENSSL ] && tls_static=OFF || tls_static="$PAWNREST_TLS_STATIC_OPENSSL"
 
@@ -13,7 +13,7 @@ cmake \
     -DCMAKE_CXX_FLAGS=-m32 \
     -DCMAKE_BUILD_TYPE=$config \
     -DSTATIC_STDCXX=true \
-    -DBUILD_SERVER=$build_server \
+    -DBUILD_SAMP_PLUGIN="$build_samp_plugin" \
     -DPAWNREST_ENABLE_TLS="$tls_enabled" \
     -DPAWNREST_TLS_STATIC_OPENSSL="$tls_static" \
 &&
