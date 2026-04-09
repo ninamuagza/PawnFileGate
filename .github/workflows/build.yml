@@ -53,6 +53,8 @@ jobs:
             -e CONFIG=${CONFIG} \
             -e BUILD_DIR=build-omp \
             -e BUILD_SAMP_PLUGIN=OFF \
+            -e PAWNREST_ENABLE_TLS=ON \
+            -e PAWNREST_TLS_STATIC_OPENSSL=OFF \
             pawnrest/build:ubuntu-18.04
 
       - name: Build Linux SA-MP plugin (dynamic SSL)
@@ -67,6 +69,8 @@ jobs:
             -e CONFIG=${CONFIG} \
             -e BUILD_DIR=build-samp \
             -e BUILD_SAMP_PLUGIN=ON \
+            -e PAWNREST_ENABLE_TLS=ON \
+            -e PAWNREST_TLS_STATIC_OPENSSL=OFF \
             pawnrest/build:ubuntu-18.04
 
       - name: Build Linux open.mp (static SSL)
