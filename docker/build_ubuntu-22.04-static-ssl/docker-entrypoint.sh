@@ -9,6 +9,7 @@ cmake \
     -S . \
     -B "$build_dir" \
     -G Ninja \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DCMAKE_C_FLAGS=-m32 \
     -DCMAKE_CXX_FLAGS=-m32 \
     -DCMAKE_BUILD_TYPE=$config \
