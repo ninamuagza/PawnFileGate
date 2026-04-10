@@ -66,7 +66,55 @@ Callback signature for `REST_RequestJSON`:
 public YourJsonCallback(requestId, httpStatus, nodeId)
 ```
 
-## 4. Error Callbacks
+## 4. Discord / Webhook Pattern
+
+A full webhook-oriented example is available in `example/09_discord_webhook.pwn`.
+
+Discord webhooks are just JSON `POST` requests to a fixed path. A practical setup is:
+
+```pawn
+#define DISCORD_BASE_URL "https://discord.com"
+#define DISCORD_WEBHOOK_PATH "/api/webhooks/<webhook-id>/<webhook-token>"
+
+new g_Discord = -1;
+
+public OnGameModeInit()
+{
+    new headers[256];
+    REST_RequestHeaders(headers, sizeof(headers), "Content-Type", "application/json");
+    REST_RequestHeadersAppend(headers, sizeof(headers), "User-Agent", "PawnREST/1.0");
+
+    g_Discord = REST_CreateRequestClient(DISCORD_BASE_URL, headers, true);
+    return 1;
+}
+
+stock SendDiscordMessage(const text[])
+{
+    new payload = JsonObject("content", JsonString(text));
+    new requestId = REST_RequestJSON(g_Discord, DISCORD_WEBHOOK_PATH, HTTP_METHOD_POST, "OnDiscordWebhookPosted", payload);
+    JsonCleanup(payload);
+    return requestId;
+}
+
+public OnDiscordWebhookPosted(requestId, httpStatus, nodeId)
+{
+    printf("discord request=%d status=%d", requestId, httpStatus);
+
+    if (nodeId != -1)
+    {
+        JsonCleanup(nodeId);
+    }
+    return 1;
+}
+```
+
+Notes:
+
+- Keep the real webhook token out of version control.
+- Discord success commonly returns `204 No Content`.
+- When `REST_RequestJSON` receives an empty body, PawnREST still gives you a cleanup-able JSON node handle, so release `nodeId` if it is not `-1`.
+
+## 5. Error Callbacks
 
 Transport/internal failures are emitted globally:
 
@@ -81,7 +129,7 @@ Typical `PAWNREST_ERR_*` categories:
 - timeout/network failures
 - JSON parse failures in JSON request/response path
 
-## 5. Request State and Cancellation
+## 6. Request State and Cancellation
 
 ```pawn
 new bool:cancelled = REST_CancelRequest(requestId);
@@ -100,7 +148,7 @@ if (REST_GetRequestResponse(requestId, buffer, sizeof(buffer)))
 }
 ```
 
-## 6. Per-Request Extra Headers
+## 7. Per-Request Extra Headers
 
 `REST_Request` and `REST_RequestJSON` accept `headers` as:
 
@@ -116,7 +164,7 @@ REST_RequestHeaders(headers, sizeof(headers), "X-Trace-Id", "abc-123");
 REST_RequestHeadersAppend(headers, sizeof(headers), "X-Region", "ap-southeast");
 ```
 
-## 7. Cleanup
+## 8. Cleanup
 
 ```pawn
 public OnGameModeExit()
@@ -129,7 +177,7 @@ public OnGameModeExit()
 }
 ```
 
-## 8. Operational Recommendations
+## 9. Operational Recommendations
 
 1. Keep one client per external service and reuse it.
 2. Use short callback names scoped by domain (`OnAuthResponse`, `OnBillingResponse`, etc.).

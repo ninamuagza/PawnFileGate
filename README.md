@@ -9,6 +9,15 @@ API documentation and use-case guides are available in [`wiki/`](./wiki/):
 ## Example Pawn Scripts
 
 Examples Pawn scripts are available in [`example/`](./example/):
+- `01_server_routes.pwn` - inbound custom REST routes
+- `02_file_routes_and_ops.pwn` - managed file routes and route-backed file operations
+- `03_json_nodes.pwn` - JSON node creation, mutation, and response usage
+- `04_outbound_uploads.pwn` - outbound file uploads with progress callbacks
+- `05_outbound_requests.pwn` - reusable HTTP clients for text and JSON requests
+- `06_websocket_client.pwn` - text and JSON websocket clients
+- `07_crc_utils.pwn` - CRC32 helpers and file comparison utilities
+- `08_request_input_fallbacks.pwn` - path/query/header/body input fallback patterns
+- `09_discord_webhook.pwn` - Discord webhook notifications using `REST_RequestJSON`
 
 ## Features
 
