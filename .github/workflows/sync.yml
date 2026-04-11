@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'wiki/**'
+  workflow_dispatch:  # ← ini untuk manual run
 
 jobs:
   sync-wiki:
