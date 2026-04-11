@@ -1,24 +1,22 @@
 # .github/workflows/sync-wiki.yml
 name: Sync Wiki
-
 on:
   push:
     branches: [main]
     paths:
       - 'wiki/**'
-  workflow_dispatch:  # ← ini untuk manual run
+  workflow_dispatch:
 
 jobs:
   sync-wiki:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Sync to GitHub Wiki
         uses: newrelic/wiki-sync-action@main
         with:
           source: wiki
           destination: wiki
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
           gitAuthorName: github-actions[bot]
           gitAuthorEmail: github-actions[bot]@users.noreply.github.com
