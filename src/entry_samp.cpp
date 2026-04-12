@@ -21,8 +21,8 @@ extern void* pAMXFunctions;
 typedef void (*logprintf_t)(const char* format, ...);
 logprintf_t logprintf;
 
-// Shared implementation
-#include "pawnrest/pawnrest_impl.hpp"
+// Shared entry include (used by both SA-MP and open.mp builds)
+#include "pawnrest/entry_shared.inl"
 
 // AMX list for callbacks
 static std::vector<AMX*> g_AmxList;

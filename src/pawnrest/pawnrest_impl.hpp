@@ -32,10 +32,10 @@
 #include "types.inl"
 #include "json.inl"
 #include "utils.inl"
+#include <crc32.hpp>
 #include "core_samp.inl"
 
 #include <climits>
-#include <crc32.hpp>
 
 namespace PawnREST {
     inline PawnRESTCore& GetCore() {
