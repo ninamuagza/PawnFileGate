@@ -2018,8 +2018,9 @@ private:
         // GET {endpoint}/files/{filename} - Download file
         httpServer->Get((endpoint + "/files/(.+)").c_str(),
             [this, capturedId](const httplib::Request& req, httplib::Response& res) {
-                if (req.path.size() >= 5 &&
-                    req.path.compare(req.path.size() - 5, 5, "/info") == 0) return; // Skip only if /info suffix
+                constexpr size_t infoSuffixLen = sizeof("/info") - 1;
+                if (req.path.size() >= infoSuffixLen &&
+                    req.path.compare(req.path.size() - infoSuffixLen, infoSuffixLen, "/info") == 0) return; // Skip only if /info suffix
                 HandleFileDownload(req, res, capturedId);
             });
         
@@ -2101,7 +2102,9 @@ private:
                     if (entry->d_type == DT_REG) {
                         files.push_back(entry->d_name);
                     } else if (entry->d_type == DT_UNKNOWN) {
-                        std::string fullPath = destPath + entry->d_name;
+                        std::string fullPath = destPath;
+                        if (!fullPath.empty() && fullPath.back() != '/') fullPath += '/';
+                        fullPath += entry->d_name;
                         struct stat st;
                         if (stat(fullPath.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
                             files.push_back(entry->d_name);
@@ -2949,7 +2952,9 @@ public:
                     if (entry->d_type == DT_REG) {
                         ++count;
                     } else if (entry->d_type == DT_UNKNOWN) {
-                        std::string fullPath = destPath + entry->d_name;
+                        std::string fullPath = destPath;
+                        if (!fullPath.empty() && fullPath.back() != '/') fullPath += '/';
+                        fullPath += entry->d_name;
                         struct stat st;
                         if (stat(fullPath.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
                             ++count;
@@ -3000,7 +3005,9 @@ public:
                     if (entry->d_type == DT_REG) {
                         isRegular = true;
                     } else if (entry->d_type == DT_UNKNOWN) {
-                        std::string fullPath = destPath + entry->d_name;
+                        std::string fullPath = destPath;
+                        if (!fullPath.empty() && fullPath.back() != '/') fullPath += '/';
+                        fullPath += entry->d_name;
                         struct stat st;
                         if (stat(fullPath.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
                             isRegular = true;
