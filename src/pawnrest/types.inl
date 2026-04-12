@@ -261,6 +261,7 @@ struct RequestContext {
     bool                 jsonStarted = false;
     std::unordered_map<std::string, std::string> responseHeaders;
     std::atomic<bool>    responded { false };
+    std::mutex           responseMutex;
     httplib::Response*   httpRes = nullptr;
 };
 

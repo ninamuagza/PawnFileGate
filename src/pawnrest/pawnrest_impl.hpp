@@ -91,7 +91,11 @@ inline bool ImplSetAllowInfo(int routeId, bool allow) { return PawnREST::GetCore
 inline int ImplGetFileCount(int routeId) { return PawnREST::GetCore().GetRouteFileCount(routeId); }
 inline std::string ImplGetFileName(int routeId, int index) { return PawnREST::GetCore().GetRouteFileName(routeId, index); }
 inline bool ImplDeleteFile(int routeId, const std::string& filename) { return PawnREST::GetCore().DeleteRouteFile(routeId, filename); }
-inline int ImplGetFileSize(int routeId, const std::string& filename) { return static_cast<int>(PawnREST::GetCore().GetRouteFileSize(routeId, filename)); }
+inline int ImplGetFileSize(int routeId, const std::string& filename) {
+    size_t size = PawnREST::GetCore().GetRouteFileSize(routeId, filename);
+    if (size > static_cast<size_t>(INT_MAX)) return INT_MAX;
+    return static_cast<int>(size);
+}
 
 // -----------------------------------------------------------------------------
 // REST API routes

@@ -634,7 +634,9 @@ SCRIPT_API(REST_GetFileSize, int(int routeId, const std::string& filename))
 {
     auto c = GetComponent();
     if (!c) return 0;
-    return static_cast<int>(c->GetRouteFileSize(routeId, filename));
+    size_t size = c->GetRouteFileSize(routeId, filename);
+    if (size > static_cast<size_t>(INT_MAX)) return INT_MAX;
+    return static_cast<int>(size);
 }
 
 // Upload (Client) Natives
@@ -946,7 +948,5 @@ SCRIPT_API(REST_CompareFiles, int(const std::string& path1, const std::string& p
 
     uint32_t crc1 = CRC32::fileChecksum(fullPath1);
     uint32_t crc2 = CRC32::fileChecksum(fullPath2);
-
-    if (crc1 == 0 || crc2 == 0) return -1;
     return (crc1 == crc2) ? 1 : 0;
 }

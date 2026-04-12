@@ -112,6 +112,35 @@ namespace Json {
                     case 'n': out += '\n'; break;
                     case 'r': out += '\r'; break;
                     case 't': out += '\t'; break;
+                    case 'u': {
+                        if (pos + 4 >= s.size()) return false;
+                        auto hexv = [](char ch) -> int {
+                            if (ch >= '0' && ch <= '9') return ch - '0';
+                            if (ch >= 'a' && ch <= 'f') return 10 + (ch - 'a');
+                            if (ch >= 'A' && ch <= 'F') return 10 + (ch - 'A');
+                            return -1;
+                        };
+
+                        int h1 = hexv(s[pos + 1]);
+                        int h2 = hexv(s[pos + 2]);
+                        int h3 = hexv(s[pos + 3]);
+                        int h4 = hexv(s[pos + 4]);
+                        if (h1 < 0 || h2 < 0 || h3 < 0 || h4 < 0) return false;
+
+                        unsigned int cp = static_cast<unsigned int>((h1 << 12) | (h2 << 8) | (h3 << 4) | h4);
+                        if (cp <= 0x7F) {
+                            out += static_cast<char>(cp);
+                        } else if (cp <= 0x7FF) {
+                            out += static_cast<char>(0xC0 | ((cp >> 6) & 0x1F));
+                            out += static_cast<char>(0x80 | (cp & 0x3F));
+                        } else {
+                            out += static_cast<char>(0xE0 | ((cp >> 12) & 0x0F));
+                            out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+                            out += static_cast<char>(0x80 | (cp & 0x3F));
+                        }
+                        pos += 4;
+                        break;
+                    }
                     default: out += s[pos]; break;
                 }
             } else {
@@ -129,15 +158,27 @@ namespace Json {
         size_t start = pos;
         
         if (pos < s.size() && s[pos] == '-') ++pos;
+
+        size_t intStart = pos;
         while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
+        bool hasIntegerDigits = pos > intStart;
+
         if (pos < s.size() && s[pos] == '.') {
             ++pos;
+            size_t fracStart = pos;
             while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
+            bool hasFractionDigits = pos > fracStart;
+            if (!hasIntegerDigits && !hasFractionDigits) return false;
+        } else if (!hasIntegerDigits) {
+            return false;
         }
+
         if (pos < s.size() && (s[pos] == 'e' || s[pos] == 'E')) {
             ++pos;
             if (pos < s.size() && (s[pos] == '+' || s[pos] == '-')) ++pos;
+            size_t expStart = pos;
             while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
+            if (expStart == pos) return false;
         }
         
         if (pos == start) return false;

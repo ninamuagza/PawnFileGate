@@ -1048,38 +1048,34 @@ private:
         const std::string& path,
         std::shared_ptr<std::atomic<bool>> cancelToken)
     {
-        // NOTE:
-        // httplib multipart streaming API varies between versions.
-        // For large files, prefer RAW mode which is fully streaming.
-        // Multipart here uses a memory buffer for compatibility stability.
-
-        std::ifstream file(fullPath, std::ios::binary);
-        if (!file) {
+        // Stream multipart payload from disk to avoid loading the whole file into memory.
+        if (!FileUtils::FileExists(fullPath)) {
             return httplib::Result(nullptr, httplib::Error::Unknown);
         }
 
-        std::vector<char> buffer(fileSize);
-        file.read(buffer.data(), static_cast<std::streamsize>(fileSize));
-        if (!file) {
-            return httplib::Result(nullptr, httplib::Error::Unknown);
-        }
-
-        UpdateOutgoingProgress(uploadId, fileSize / 2, fileSize, crcValue);
-
-        // FIX: use UploadFormDataItems and UploadFormData with correct field names
         httplib::UploadFormDataItems items;
         httplib::UploadFormData fileItem;
         fileItem.name         = "file";
         fileItem.filename     = sendFilename.empty() ? SanitizeFilename(fullPath) : SanitizeFilename(sendFilename);
         fileItem.content_type = "application/octet-stream";
-        fileItem.content.assign(buffer.data(), buffer.size());
+        fileItem.content = "";
         items.push_back(std::move(fileItem));
+
+        httplib::FormDataProviderItems providerItems;
+        providerItems.push_back(httplib::make_file_provider(
+            "file",
+            fullPath,
+            sendFilename.empty() ? SanitizeFilename(fullPath) : SanitizeFilename(sendFilename),
+            "application/octet-stream"
+        ));
 
         if (cancelToken->load()) {
             return httplib::Result(nullptr, httplib::Error::Canceled);
         }
 
-        httplib::Result result = client.Post(path, headers, items);
+        UpdateOutgoingProgress(uploadId, fileSize / 2, fileSize, crcValue);
+
+        httplib::Result result = client.Post(path, headers, items, providerItems);
 
         if (!cancelToken->load()) {
             UpdateOutgoingProgress(uploadId, fileSize, fileSize, crcValue);
@@ -1135,16 +1131,44 @@ private:
             path = url.substr(pathPos);
         }
 
-        size_t portPos = host.find(':');
-        if (portPos != std::string::npos) {
-            try {
-                port = std::stoi(host.substr(portPos + 1));
-            } catch (...) {
-                return false;
+        std::string authority = host;
+        host.clear();
+        port = (scheme == "https" || scheme == "wss") ? 443 : 80;
+
+        if (!authority.empty() && authority.front() == '[') {
+            size_t close = authority.find(']');
+            if (close == std::string::npos || close <= 1) return false;
+
+            host = authority.substr(1, close - 1);
+            if (close + 1 < authority.size()) {
+                if (authority[close + 1] != ':') return false;
+                std::string portStr = authority.substr(close + 2);
+                if (portStr.empty()) return false;
+                try {
+                    unsigned long parsed = std::stoul(portStr);
+                    if (parsed == 0 || parsed > 65535) return false;
+                    port = static_cast<int>(parsed);
+                } catch (...) {
+                    return false;
+                }
             }
-            host = host.substr(0, portPos);
         } else {
-            port = (scheme == "https" || scheme == "wss") ? 443 : 80;
+            size_t firstColon = authority.find(':');
+            size_t lastColon = authority.rfind(':');
+            if (firstColon != std::string::npos && firstColon == lastColon) {
+                std::string portStr = authority.substr(lastColon + 1);
+                if (portStr.empty()) return false;
+                try {
+                    unsigned long parsed = std::stoul(portStr);
+                    if (parsed == 0 || parsed > 65535) return false;
+                    port = static_cast<int>(parsed);
+                } catch (...) {
+                    return false;
+                }
+                host = authority.substr(0, lastColon);
+            } else {
+                host = authority;
+            }
         }
 
         return !host.empty();
@@ -1858,11 +1882,15 @@ private:
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             auto elapsed = std::chrono::steady_clock::now() - start;
             if (elapsed > std::chrono::seconds(30)) {
-                res.status = 504;
-                res.set_content(Json::Obj({
-                    Json::Bool("success", false),
-                    Json::Str("error", "Gateway timeout", false)
-                }), "application/json");
+                std::lock_guard<std::mutex> guard(ctx->responseMutex);
+                if (!ctx->responded.load(std::memory_order_acquire) && ctx->httpRes) {
+                    ctx->httpRes->status = 504;
+                    ctx->httpRes->set_content(Json::Obj({
+                        Json::Bool("success", false),
+                        Json::Str("error", "Gateway timeout", false)
+                    }), "application/json");
+                    ctx->responded.store(true, std::memory_order_release);
+                }
                 break;
             }
         }
@@ -2172,19 +2200,8 @@ private:
             return;
         }
         
-        // Read and send file
-        std::ifstream file(fullPath, std::ios::binary);
-        if (!file) {
-            res.status = 500;
-            res.set_content(Json::Obj({ Json::Str("error", "Failed to read file", false) }), "application/json");
-            return;
-        }
-        
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        
         res.set_header("Content-Disposition", "attachment; filename=\"" + safeName + "\"");
-        res.set_content(buffer.str(), "application/octet-stream");
+        res.set_file_content(fullPath, "application/octet-stream");
     }
     
     void HandleFileInfo(const httplib::Request& req, httplib::Response& res, int routeId)
@@ -3498,8 +3515,11 @@ public:
     bool Respond(int requestId, int status, const std::string& body, const std::string& contentType)
     {
         auto ctx = GetRequest(requestId);
-        if (!ctx || ctx->responded.load(std::memory_order_acquire) || !ctx->httpRes) return false;
-        
+        if (!ctx || !ctx->httpRes) return false;
+
+        std::lock_guard<std::mutex> guard(ctx->responseMutex);
+        if (ctx->responded.load(std::memory_order_acquire)) return false;
+
         for (const auto& kv : ctx->responseHeaders) {
             ctx->httpRes->set_header(kv.first.c_str(), kv.second.c_str());
         }
@@ -3526,7 +3546,9 @@ public:
     bool SetResponseHeader(int requestId, const std::string& name, const std::string& value)
     {
         auto ctx = GetRequest(requestId);
-        if (!ctx || ctx->responded.load(std::memory_order_acquire)) return false;
+        if (!ctx) return false;
+        std::lock_guard<std::mutex> guard(ctx->responseMutex);
+        if (ctx->responded.load(std::memory_order_acquire)) return false;
         ctx->responseHeaders[name] = value;
         return true;
     }

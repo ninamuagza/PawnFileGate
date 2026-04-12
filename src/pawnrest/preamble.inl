@@ -297,6 +297,7 @@ struct RequestContext {
     
     // State
     std::atomic<bool>    responded { false };
+    std::mutex           responseMutex;
     httplib::Response*   httpRes = nullptr;
 };
 
