@@ -1854,7 +1854,7 @@ private:
         
         // Wait for response (with timeout)
         auto start = std::chrono::steady_clock::now();
-        while (!ctx->responded) {
+        while (!ctx->responded.load(std::memory_order_acquire)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             auto elapsed = std::chrono::steady_clock::now() - start;
             if (elapsed > std::chrono::seconds(30)) {
@@ -3458,7 +3458,7 @@ public:
     bool Respond(int requestId, int status, const std::string& body, const std::string& contentType)
     {
         auto ctx = GetRequest(requestId);
-        if (!ctx || ctx->responded || !ctx->httpRes) return false;
+        if (!ctx || ctx->responded.load(std::memory_order_acquire) || !ctx->httpRes) return false;
         
         for (const auto& kv : ctx->responseHeaders) {
             ctx->httpRes->set_header(kv.first.c_str(), kv.second.c_str());
@@ -3466,7 +3466,7 @@ public:
         
         ctx->httpRes->status = status;
         ctx->httpRes->set_content(body, contentType.c_str());
-        ctx->responded = true;
+        ctx->responded.store(true, std::memory_order_release);
         return true;
     }
     
@@ -3486,7 +3486,7 @@ public:
     bool SetResponseHeader(int requestId, const std::string& name, const std::string& value)
     {
         auto ctx = GetRequest(requestId);
-        if (!ctx || ctx->responded) return false;
+        if (!ctx || ctx->responded.load(std::memory_order_acquire)) return false;
         ctx->responseHeaders[name] = value;
         return true;
     }
