@@ -279,7 +279,9 @@ jobs:
             --parallel
 
       # ---------------------------------------------------------------------------
-      # Package: find the DLL, copy it + .inc + (dynamic only) OpenSSL runtimes
+      # Package: find the plugin DLL and copy only plugin payload (.dll + .inc)
+      # Runtime OpenSSL DLLs (dynamic linkage) are packaged separately below so
+      # plugin size comparisons stay apples-to-apples with static linkage.
       # ---------------------------------------------------------------------------
       - name: Verify and package Windows artifact
         shell: powershell
@@ -313,7 +315,9 @@ jobs:
               throw "Expected OpenSSL runtime DLLs not found in $opensslBin"
             }
 
-            Copy-Item $runtimeDlls.FullName -Destination $artifactRoot -Force
+            $runtimeRoot = Join-Path $PWD "dist/${{ matrix.artifact_name }}-runtime"
+            New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
+            Copy-Item $runtimeDlls.FullName -Destination $runtimeRoot -Force
           }
 
       - name: Upload Windows artifact
@@ -323,6 +327,14 @@ jobs:
           path: |
             dist/${{ matrix.artifact_name }}/PawnREST.dll
             dist/${{ matrix.artifact_name }}/PawnREST.inc
-            dist/${{ matrix.artifact_name }}/libssl-*.dll
-            dist/${{ matrix.artifact_name }}/libcrypto-*.dll
+          if-no-files-found: error
+
+      - name: Upload Windows runtime artifact (dynamic only)
+        if: matrix.linkage == 'dynamic'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}-runtime
+          path: |
+            dist/${{ matrix.artifact_name }}-runtime/libssl-*.dll
+            dist/${{ matrix.artifact_name }}-runtime/libcrypto-*.dll
           if-no-files-found: error
