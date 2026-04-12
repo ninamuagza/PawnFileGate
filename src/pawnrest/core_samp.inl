@@ -1049,7 +1049,6 @@ private:
         fileItem.name         = "file";
         fileItem.filename     = sendFilename.empty() ? SanitizeFilename(fullPath) : SanitizeFilename(sendFilename);
         fileItem.content_type = "application/octet-stream";
-        fileItem.content = "";
         items.push_back(std::move(fileItem));
 
         httplib::FormDataProviderItems providerItems;
