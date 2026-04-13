@@ -85,6 +85,9 @@ private:
         if (written < 0) return;
         buffer[sizeof(buffer) - 1] = '\0';
         logSink(buffer);
+        if (written >= static_cast<int>(sizeof(buffer))) {
+            logSink("[PawnREST] WARNING: log message truncated");
+        }
     }
 
     std::string MakeTempPath(int uploadId)
@@ -2208,8 +2211,7 @@ private:
         SetupApiHandlers();
 
         if (!httpServer->bind_to_port("0.0.0.0", port)) {
-            PrintLn("  >>> The selected port %d is already in use by another process.", port);
-            PrintLn("  >>> Please use a different port.");
+            PrintLn("[PawnREST] ERROR: Port %d is already in use. Please use a different port.", port);
             httpServer.reset();
             tlsEnabled = false;
             tlsCertPath.clear();
