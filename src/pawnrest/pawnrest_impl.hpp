@@ -58,6 +58,10 @@ inline void ImplShutdown() {
     PawnREST::g_Initialized = false;
 }
 
+inline void ImplSetLogger(void (*sink)(const char*)) {
+    PawnREST::GetCore().SetLogger(sink);
+}
+
 // -----------------------------------------------------------------------------
 // Server control
 // -----------------------------------------------------------------------------

@@ -21,6 +21,12 @@ extern void* pAMXFunctions;
 typedef void (*logprintf_t)(const char* format, ...);
 logprintf_t logprintf;
 
+static void PawnRestLogSink(const char* message) {
+    if (logprintf && message) {
+        logprintf("%s", message);
+    }
+}
+
 // Shared entry include (used by both SA-MP and open.mp builds)
 #include "pawnrest/entry_shared.inl"
 
@@ -1186,6 +1192,7 @@ PLUGIN_EXPORT unsigned int PLUGIN_CALL Supports() {
 PLUGIN_EXPORT bool PLUGIN_CALL Load(void** ppData) {
     pAMXFunctions = ppData[PLUGIN_DATA_AMX_EXPORTS];
     logprintf = reinterpret_cast<logprintf_t>(ppData[PLUGIN_DATA_LOGPRINTF]);
+    ImplSetLogger(&PawnRestLogSink);
 
     if (!ImplInitialize()) {
         return false;

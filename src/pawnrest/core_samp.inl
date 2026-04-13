@@ -68,8 +68,25 @@ private:
     
     std::mutex apiEventMutex;
     std::vector<APIRequestEvent> pendingApiEvents;
+    void (*logSink)(const char*) = nullptr;
 
 private:
+    template <typename... Args>
+    void PrintLn(const char* fmt, Args... args)
+    {
+        if (!logSink || !fmt) return;
+        char buffer[1024];
+        int written = 0;
+        if constexpr (sizeof...(Args) == 0) {
+            written = std::snprintf(buffer, sizeof(buffer), "%s", fmt);
+        } else {
+            written = std::snprintf(buffer, sizeof(buffer), fmt, args...);
+        }
+        if (written < 0) return;
+        buffer[sizeof(buffer) - 1] = '\0';
+        logSink(buffer);
+    }
+
     std::string MakeTempPath(int uploadId)
     {
         auto ts = std::chrono::system_clock::now().time_since_epoch().count();
@@ -2105,6 +2122,7 @@ private:
         const std::string& keyPath = "")
     {
         if (isRunning) {
+            PrintLn("[PawnREST] ERROR: Server already running on port %d", currentPort);
             return false;
         }
 
@@ -2133,14 +2151,17 @@ private:
             std::string certFullPath = resolvePath(certPath);
             std::string keyFullPath = resolvePath(keyPath);
             if (certFullPath.empty() || keyFullPath.empty()) {
+                PrintLn("[PawnREST] ERROR: TLS requires valid cert and key paths");
                 return false;
             }
             if (!FileUtils::FileExists(certFullPath) || !FileUtils::FileExists(keyFullPath)) {
+                PrintLn("[PawnREST] ERROR: TLS cert/key file not found");
                 return false;
             }
 
             auto sslServer = std::make_unique<httplib::SSLServer>(certFullPath.c_str(), keyFullPath.c_str());
             if (!sslServer->is_valid()) {
+                PrintLn("[PawnREST] ERROR: Failed to initialize HTTPS server with provided cert/key");
                 return false;
             }
             httpServer = std::move(sslServer);
@@ -2148,6 +2169,7 @@ private:
             tlsCertPath = certFullPath;
             tlsKeyPath = keyFullPath;
 #else
+            PrintLn("[PawnREST] ERROR: TLS/HTTPS is not available in this build");
             return false;
 #endif
         } else {
@@ -2186,6 +2208,8 @@ private:
         SetupApiHandlers();
 
         if (!httpServer->bind_to_port("0.0.0.0", port)) {
+            PrintLn("  >>> The selected port %d is already in use by another process.", port);
+            PrintLn("  >>> Please use a different port.");
             httpServer.reset();
             tlsEnabled = false;
             tlsCertPath.clear();
@@ -2200,6 +2224,7 @@ private:
             httpServer->listen_after_bind();
         });
 
+        PrintLn("  [PawnREST] %s server started on port %d", tlsEnabled ? "HTTPS" : "HTTP", port);
         return true;
     }
 
@@ -2226,6 +2251,11 @@ public:
 
 public:
     PawnRESTCore() = default;
+
+    void SetLogger(void (*sink)(const char*))
+    {
+        logSink = sink;
+    }
 
     void Initialize()
     {
@@ -2295,6 +2325,7 @@ public:
         if (!isRunning) return false;
         bool wasTls = tlsEnabled;
         StopHttpServer();
+        PrintLn("  [PawnREST] %s server stopped", wasTls ? "HTTPS" : "HTTP");
         return true;
     }
     bool IsRunning() const { return isRunning; }
@@ -2350,6 +2381,7 @@ public:
             RegisterFileOpsForRoute(id, capturedEndpoint);
         }
 
+        PrintLn("  Files: POST %s -> %s", capturedEndpoint.c_str(), safePath.c_str());
         return id;
     }
 
@@ -2508,6 +2540,7 @@ public:
         }
         
         const char* methodNames[] = { "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS" };
+        PrintLn("  API: %s %s -> %s()", methodNames[method], endpoint.c_str(), callback.c_str());
         return id;
     }
     
@@ -3324,6 +3357,7 @@ public:
 
         std::string fullPath = serverRootPath + safeFile;
         if (!FileUtils::FileExists(fullPath)) {
+            PrintLn("[PawnREST] Upload failed: file not found %s", fullPath.c_str());
             return -1;
         }
 
@@ -3347,6 +3381,8 @@ public:
             outgoingUploads[id] = std::move(upload);
         }
 
+        PrintLn("[PawnREST] Upload queued #%d: %s -> %s (%s)",
+            id, filepath.c_str(), url.c_str(), (mode == 1 ? "RAW" : "MULTIPART"));
         return id;
     }
 
@@ -3370,6 +3406,7 @@ public:
             std::lock_guard<std::mutex> lock(outgoingMutex);
             uploadClients[id] = std::move(client);
         }
+        PrintLn("[PawnREST] Upload client #%d created: %s", id, baseUrl.c_str());
         return id;
     }
 
